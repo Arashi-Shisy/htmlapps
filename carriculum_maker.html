@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,48 +9,43 @@
     <style>
         /* タイムラインの背景（1時間実線、30分点線） */
         .timeline-bg {
-            background-image:
+            background-image: 
                 linear-gradient(to bottom, #e5e7eb 1px, transparent 1px),
                 linear-gradient(to bottom, #f3f4f6 1px, transparent 1px);
-            background-size: 100% 120px, 100% 60px;
-            /* 1時間 = 120px, 30分 = 60px */
+            background-size: 100% 120px, 100% 60px; /* 1時間 = 120px, 30分 = 60px */
             background-position: 0 0, 0 60px;
         }
-
+        
         /* スクロールバーのカスタマイズ */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
         }
-
         ::-webkit-scrollbar-track {
             background: #f8fafc;
         }
-
         ::-webkit-scrollbar-thumb {
             background: #cbd5e1;
             border-radius: 4px;
         }
-
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
-
+        
         .session-box {
             transition: transform 0.1s, box-shadow 0.1s;
         }
-
         .session-box:hover {
             filter: brightness(1.03);
             transform: translateY(-1px);
             box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.15);
             z-index: 10;
         }
-
+        
         .day-column.drag-over {
             background-color: rgba(59, 130, 246, 0.08);
         }
-
+        
         /* リサイズハンドル */
         .resize-handle {
             position: absolute;
@@ -64,27 +58,15 @@
             background-color: rgba(0, 0, 0, 0.15);
             transition: opacity 0.2s, background-color 0.2s;
         }
-
         .session-box:hover .resize-handle {
             opacity: 1;
         }
-
         .resize-handle:hover {
             background-color: rgba(0, 0, 0, 0.4);
             height: 8px;
         }
-
-        .resize-handle-top {
-            top: 0;
-            border-top-left-radius: 6px;
-            border-top-right-radius: 6px;
-        }
-
-        .resize-handle-bottom {
-            bottom: 0;
-            border-bottom-left-radius: 6px;
-            border-bottom-right-radius: 6px;
-        }
+        .resize-handle-top { top: 0; border-top-left-radius: 6px; border-top-right-radius: 6px; }
+        .resize-handle-bottom { bottom: 0; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
 
         /* 現在時刻インジケーター */
         .current-time-line {
@@ -92,12 +74,10 @@
             left: 0;
             right: 0;
             height: 2px;
-            background-color: #ef4444;
-            /* text-red-500 */
+            background-color: #ef4444; /* text-red-500 */
             z-index: 5;
             pointer-events: none;
         }
-
         .current-time-line::before {
             content: '';
             position: absolute;
@@ -110,7 +90,6 @@
         }
     </style>
 </head>
-
 <body class="bg-slate-50 h-screen flex flex-col font-sans text-slate-800">
 
     <!-- ヘッダー -->
@@ -118,83 +97,42 @@
         <div class="flex items-center gap-5">
             <div class="flex items-center gap-2 group">
                 <div class="p-1.5 bg-blue-50 rounded-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
                 </div>
                 <!-- 編集可能なタイトル -->
-                <input type="text" id="curriculum-title"
-                    class="text-xl font-bold text-slate-800 bg-transparent border-b-2 border-transparent hover:border-slate-300 focus:border-blue-500 outline-none transition px-1 py-0.5"
-                    value="研修カリキュラムメーカー" onchange="saveState()">
+                <input type="text" id="curriculum-title" class="text-xl font-bold text-slate-800 bg-transparent border-b-2 border-transparent hover:border-slate-300 focus:border-blue-500 outline-none transition px-1 py-0.5" value="研修カリキュラムメーカー" onchange="saveState()">
             </div>
             <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-1 border border-slate-200 shadow-inner">
-                <button onclick="changeWeek(-1)"
-                    class="p-1.5 hover:bg-white rounded-md shadow-sm text-slate-600 transition" title="前の週へ">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                    </svg>
+                <button onclick="changeWeek(-1)" class="p-1.5 hover:bg-white rounded-md shadow-sm text-slate-600 transition" title="前の週へ">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                 </button>
-                <input type="date" id="current-date"
-                    class="bg-transparent border-none font-semibold focus:ring-0 text-sm cursor-pointer text-slate-700 px-2"
-                    onchange="handleDateChange()">
-                <button onclick="changeWeek(1)"
-                    class="p-1.5 hover:bg-white rounded-md shadow-sm text-slate-600 transition" title="次の週へ">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
+                <input type="date" id="current-date" class="bg-transparent border-none font-semibold focus:ring-0 text-sm cursor-pointer text-slate-700 px-2" onchange="handleDateChange()">
+                <button onclick="changeWeek(1)" class="p-1.5 hover:bg-white rounded-md shadow-sm text-slate-600 transition" title="次の週へ">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                 </button>
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <button onclick="openInstructorSummaryModal()"
-                class="px-3 py-2 text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-md font-medium text-sm transition flex items-center gap-1.5 border border-purple-100 whitespace-nowrap">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+            <button onclick="openInstructorSummaryModal()" class="px-3 py-2 text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-md font-medium text-sm transition flex items-center gap-1.5 border border-purple-100 whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                 講師別
             </button>
-            <button onclick="openSummaryModal()"
-                class="px-3 py-2 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-md font-medium text-sm transition flex items-center gap-1.5 border border-indigo-100 whitespace-nowrap">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
+            <button onclick="openSummaryModal()" class="px-3 py-2 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-md font-medium text-sm transition flex items-center gap-1.5 border border-indigo-100 whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                 ラベル別
             </button>
             <div class="w-px h-6 bg-slate-300 mx-1"></div>
-            <button onclick="exportAsImage(this)"
-                class="px-3 py-2 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md font-medium text-sm transition flex items-center gap-1.5 border border-emerald-100 whitespace-nowrap">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
+            <button onclick="exportAsImage(this)" class="px-3 py-2 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md font-medium text-sm transition flex items-center gap-1.5 border border-emerald-100 whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                 画像化
             </button>
-            <label
-                class="cursor-pointer px-3 py-2 text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-md font-medium text-sm transition flex items-center gap-1.5 shadow-sm">
+            <label class="cursor-pointer px-3 py-2 text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-md font-medium text-sm transition flex items-center gap-1.5 shadow-sm">
                 <input type="file" id="import-file" accept=".json" class="hidden" onchange="importData(event)">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                 開く
             </label>
-            <button onclick="exportData()"
-                class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-md font-medium text-sm transition flex items-center gap-1.5 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                </svg>
+            <button onclick="exportData()" class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-md font-medium text-sm transition flex items-center gap-1.5 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
                 保存 (JSON)
             </button>
         </div>
@@ -202,16 +140,12 @@
 
     <!-- メインコンテンツ -->
     <div class="flex flex-1 overflow-hidden">
-
+        
         <!-- 左側：サイドバー（ラベルパレット） -->
         <aside class="w-64 bg-white border-r border-slate-200 flex flex-col z-10 shadow-sm relative">
             <div class="p-4 border-b border-slate-100 bg-slate-50/50">
                 <h3 class="text-sm font-bold text-slate-700 mb-1 flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-500" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
                     ラベルパレット
                 </h3>
                 <p class="text-[11px] text-slate-500 mb-4 leading-relaxed">右のタイムラインへドラッグするか、<br>タイムラインの空白をクリックして追加。</p>
@@ -220,24 +154,12 @@
                 </div>
             </div>
             <div class="p-4 mt-auto border-t border-slate-100 bg-slate-50">
-                <button onclick="openBulkAddModal()"
-                    class="w-full py-2 bg-white border border-slate-300 text-slate-700 rounded-md shadow-sm hover:bg-slate-50 hover:border-slate-400 text-sm font-medium transition mb-2 flex justify-center items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                <button onclick="openBulkAddModal()" class="w-full py-2 bg-white border border-slate-300 text-slate-700 rounded-md shadow-sm hover:bg-slate-50 hover:border-slate-400 text-sm font-medium transition mb-2 flex justify-center items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     予定の一括配置
                 </button>
-                <button onclick="openLabelManagerModal()"
-                    class="w-full py-2 bg-white border border-slate-300 text-slate-700 rounded-md shadow-sm hover:bg-slate-50 hover:border-slate-400 text-sm font-medium transition flex justify-center items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-500" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
+                <button onclick="openLabelManagerModal()" class="w-full py-2 bg-white border border-slate-300 text-slate-700 rounded-md shadow-sm hover:bg-slate-50 hover:border-slate-400 text-sm font-medium transition flex justify-center items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     ラベル設定
                 </button>
             </div>
@@ -245,27 +167,19 @@
 
         <!-- 右側：タイムライン -->
         <main class="flex-1 flex flex-col overflow-hidden bg-white relative">
-            <div
-                class="bg-slate-100/80 border-b border-slate-200 px-4 py-2 flex items-center justify-between z-10 shadow-sm backdrop-blur-sm">
+            <div class="bg-slate-100/80 border-b border-slate-200 px-4 py-2 flex items-center justify-between z-10 shadow-sm backdrop-blur-sm">
                 <h2 class="text-lg font-bold text-slate-700" id="timeline-title">タイムライン</h2>
                 <div class="flex items-center gap-4 text-xs text-slate-600 font-medium">
-                    <span class="hidden md:inline">※ 空白クリックで追加 <span class="text-slate-300 mx-1">|</span>
-                        Alt(Option)+ドラッグで複製</span>
+                    <span class="hidden md:inline">※ 空白クリックで追加 <span class="text-slate-300 mx-1">|</span> Alt(Option)+ドラッグで複製</span>
                     <div class="flex items-center gap-1 bg-white px-2 py-1.5 rounded border border-slate-300 shadow-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" fill="none"
-                            viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <select id="display-start-hour" onchange="updateDisplayRange()"
-                            class="bg-transparent outline-none cursor-pointer font-medium"></select>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <select id="display-start-hour" onchange="updateDisplayRange()" class="bg-transparent outline-none cursor-pointer font-medium"></select>
                         <span class="text-slate-400">〜</span>
-                        <select id="display-end-hour" onchange="updateDisplayRange()"
-                            class="bg-transparent outline-none cursor-pointer font-medium"></select>
+                        <select id="display-end-hour" onchange="updateDisplayRange()" class="bg-transparent outline-none cursor-pointer font-medium"></select>
                     </div>
                 </div>
             </div>
-
+            
             <!-- 日付ヘッダー（5日分） -->
             <div class="flex border-b border-slate-200 bg-white z-20 sticky top-0 shadow-sm" id="timeline-day-headers">
                 <!-- JSで生成 -->
@@ -274,11 +188,10 @@
             <div class="flex-1 overflow-y-auto relative" id="timeline-scroll-area">
                 <div class="flex relative" id="timeline-container">
                     <!-- 時間軸（左側） -->
-                    <div class="w-16 flex-shrink-0 bg-slate-50 border-r border-slate-200 text-xs text-slate-500 font-medium relative"
-                        id="time-axis">
+                    <div class="w-16 flex-shrink-0 bg-slate-50 border-r border-slate-200 text-xs text-slate-500 font-medium relative" id="time-axis">
                         <!-- 目盛りが生成される -->
                     </div>
-
+                    
                     <!-- ドロップ＆描画エリア（5日分カラム） -->
                     <div id="timeline-columns" class="flex-1 flex">
                         <!-- JSで生成 -->
@@ -289,242 +202,162 @@
     </div>
 
     <!-- モーダル：セッション編集 -->
-    <div id="session-modal"
-        class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 transition-opacity">
-        <div class="bg-white rounded-xl shadow-2xl w-[500px] flex flex-col max-h-[90vh] border border-slate-200 transform transition-transform scale-95"
-            id="session-modal-content">
+    <div id="session-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-[500px] flex flex-col max-h-[90vh] border border-slate-200 transform transition-transform scale-95" id="session-modal-content">
             <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-xl bg-slate-50">
                 <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2" id="session-modal-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     講義の編集
                 </h3>
-                <button onclick="closeModal('session-modal')"
-                    class="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1 transition">&times;</button>
+                <button onclick="closeModal('session-modal')" class="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1 transition">&times;</button>
             </div>
             <div class="p-6 overflow-y-auto flex-1 space-y-5">
                 <input type="hidden" id="session-id">
-
+                
                 <div class="flex gap-4">
                     <div class="flex-1">
-                        <label class="block text-sm font-bold text-slate-700 mb-1.5">日付 <span
-                                class="text-red-500">*</span></label>
-                        <input type="date" id="session-date"
-                            class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm">
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">日付 <span class="text-red-500">*</span></label>
+                        <input type="date" id="session-date" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm">
                     </div>
                     <div class="flex-1">
-                        <label class="block text-sm font-bold text-slate-700 mb-1.5">ラベル <span
-                                class="text-red-500">*</span></label>
-                        <select id="session-label"
-                            class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm bg-white"></select>
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">ラベル <span class="text-red-500">*</span></label>
+                        <select id="session-label" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm bg-white"></select>
                     </div>
                 </div>
 
                 <div class="flex gap-4">
                     <div class="flex-1">
-                        <label class="block text-sm font-bold text-slate-700 mb-1.5">開始時間 <span
-                                class="text-red-500">*</span></label>
-                        <input type="time" id="session-start"
-                            class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm"
-                            required>
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">開始時間 <span class="text-red-500">*</span></label>
+                        <input type="time" id="session-start" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm" required>
                     </div>
                     <div class="flex-1">
-                        <label class="block text-sm font-bold text-slate-700 mb-1.5">終了時間 <span
-                                class="text-red-500">*</span></label>
-                        <input type="time" id="session-end"
-                            class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm"
-                            required>
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">終了時間 <span class="text-red-500">*</span></label>
+                        <input type="time" id="session-end" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm" required>
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1.5">講義名</label>
-                    <input type="text" id="session-title" placeholder="例: オリエンテーション"
-                        class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm">
+                    <input type="text" id="session-title" placeholder="例: オリエンテーション" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm">
                 </div>
 
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1.5">講師名</label>
-                    <input type="text" id="session-instructor" placeholder="例: 山田 太郎"
-                        class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm">
+                    <input type="text" id="session-instructor" placeholder="例: 山田 太郎" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm">
                 </div>
 
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1.5">詳細メモ</label>
-                    <textarea id="session-details" rows="3" placeholder="講義の目的や必要な準備など"
-                        class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm resize-none"></textarea>
+                    <textarea id="session-details" rows="3" placeholder="講義の目的や必要な準備など" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition shadow-sm resize-none"></textarea>
                 </div>
             </div>
             <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-between">
-                <button type="button" id="btn-delete-session" onclick="deleteSession()"
-                    class="px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 rounded-md text-sm font-medium transition shadow-sm">
+                <button type="button" id="btn-delete-session" onclick="deleteSession()" class="px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 rounded-md text-sm font-medium transition shadow-sm">
                     削除
                 </button>
                 <div class="flex gap-2 ml-auto">
-                    <button type="button" onclick="closeModal('session-modal')"
-                        class="px-4 py-2 border border-slate-300 text-slate-700 bg-white rounded-md hover:bg-slate-50 text-sm font-medium transition shadow-sm">キャンセル</button>
-                    <button type="button" onclick="saveSession()"
-                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition shadow-sm shadow-blue-500/30">保存する</button>
+                    <button type="button" onclick="closeModal('session-modal')" class="px-4 py-2 border border-slate-300 text-slate-700 bg-white rounded-md hover:bg-slate-50 text-sm font-medium transition shadow-sm">キャンセル</button>
+                    <button type="button" onclick="saveSession()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition shadow-sm shadow-blue-500/30">保存する</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- モーダル：一括配置 -->
-    <div id="bulk-add-modal"
-        class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50">
+    <div id="bulk-add-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-2xl w-[550px] flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
                 <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     予定の一括配置
                 </h3>
-                <button onclick="closeModal('bulk-add-modal')"
-                    class="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1 transition">&times;</button>
+                <button onclick="closeModal('bulk-add-modal')" class="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1 transition">&times;</button>
             </div>
             <div class="p-6 overflow-y-auto flex-1 space-y-5">
-                <div
-                    class="bg-blue-50 p-3 rounded-md border border-blue-100 text-sm text-blue-800 flex items-start gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 mt-0.5" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                <div class="bg-blue-50 p-3 rounded-md border border-blue-100 text-sm text-blue-800 flex items-start gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     指定した期間内の特定の曜日に、同じ予定をまとめて作成します。
                 </div>
-
+                
                 <div class="flex gap-4">
                     <div class="flex-1">
-                        <label class="block text-sm font-bold text-slate-700 mb-1.5">ラベル <span
-                                class="text-red-500">*</span></label>
-                        <select id="bulk-label"
-                            class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition bg-white"></select>
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">ラベル <span class="text-red-500">*</span></label>
+                        <select id="bulk-label" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition bg-white"></select>
                     </div>
                     <div class="flex-1">
-                        <label class="block text-sm font-bold text-slate-700 mb-1.5">講義名 <span
-                                class="text-red-500">*</span></label>
-                        <input type="text" id="bulk-title" placeholder="例: 朝の定例MTG"
-                            class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition">
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">講義名 <span class="text-red-500">*</span></label>
+                        <input type="text" id="bulk-title" placeholder="例: 朝の定例MTG" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition">
                     </div>
                 </div>
 
                 <div class="flex gap-4">
                     <div class="flex-1">
-                        <label class="block text-sm font-bold text-slate-700 mb-1.5">期間（開始日） <span
-                                class="text-red-500">*</span></label>
-                        <input type="date" id="bulk-start-date"
-                            class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition">
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">期間（開始日） <span class="text-red-500">*</span></label>
+                        <input type="date" id="bulk-start-date" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition">
                     </div>
                     <div class="flex-1">
-                        <label class="block text-sm font-bold text-slate-700 mb-1.5">期間（終了日） <span
-                                class="text-red-500">*</span></label>
-                        <input type="date" id="bulk-end-date"
-                            class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition">
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">期間（終了日） <span class="text-red-500">*</span></label>
+                        <input type="date" id="bulk-end-date" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition">
                     </div>
                 </div>
 
                 <div class="flex gap-4">
                     <div class="flex-1">
-                        <label class="block text-sm font-bold text-slate-700 mb-1.5">開始時間 <span
-                                class="text-red-500">*</span></label>
-                        <input type="time" id="bulk-start-time" value="09:00"
-                            class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition"
-                            required>
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">開始時間 <span class="text-red-500">*</span></label>
+                        <input type="time" id="bulk-start-time" value="09:00" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition" required>
                     </div>
                     <div class="flex-1">
-                        <label class="block text-sm font-bold text-slate-700 mb-1.5">終了時間 <span
-                                class="text-red-500">*</span></label>
-                        <input type="time" id="bulk-end-time" value="10:00"
-                            class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition"
-                            required>
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">終了時間 <span class="text-red-500">*</span></label>
+                        <input type="time" id="bulk-end-time" value="10:00" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition" required>
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">対象曜日 <span
-                            class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">対象曜日 <span class="text-red-500">*</span></label>
                     <div class="flex gap-4 flex-wrap bg-slate-50 p-3.5 rounded-md border border-slate-200">
-                        <label
-                            class="flex items-center gap-1.5 cursor-pointer font-medium hover:text-blue-600 transition"><input
-                                type="checkbox" name="bulk-day" value="1" checked class="w-4 h-4 text-blue-600 rounded">
-                            月</label>
-                        <label
-                            class="flex items-center gap-1.5 cursor-pointer font-medium hover:text-blue-600 transition"><input
-                                type="checkbox" name="bulk-day" value="2" checked class="w-4 h-4 text-blue-600 rounded">
-                            火</label>
-                        <label
-                            class="flex items-center gap-1.5 cursor-pointer font-medium hover:text-blue-600 transition"><input
-                                type="checkbox" name="bulk-day" value="3" checked class="w-4 h-4 text-blue-600 rounded">
-                            水</label>
-                        <label
-                            class="flex items-center gap-1.5 cursor-pointer font-medium hover:text-blue-600 transition"><input
-                                type="checkbox" name="bulk-day" value="4" checked class="w-4 h-4 text-blue-600 rounded">
-                            木</label>
-                        <label
-                            class="flex items-center gap-1.5 cursor-pointer font-medium hover:text-blue-600 transition"><input
-                                type="checkbox" name="bulk-day" value="5" checked class="w-4 h-4 text-blue-600 rounded">
-                            金</label>
-                        <label
-                            class="flex items-center gap-1.5 cursor-pointer text-slate-400 hover:text-slate-600 transition"><input
-                                type="checkbox" name="bulk-day" value="6" class="w-4 h-4 rounded"> 土</label>
-                        <label
-                            class="flex items-center gap-1.5 cursor-pointer text-slate-400 hover:text-slate-600 transition"><input
-                                type="checkbox" name="bulk-day" value="0" class="w-4 h-4 rounded"> 日</label>
+                        <label class="flex items-center gap-1.5 cursor-pointer font-medium hover:text-blue-600 transition"><input type="checkbox" name="bulk-day" value="1" checked class="w-4 h-4 text-blue-600 rounded"> 月</label>
+                        <label class="flex items-center gap-1.5 cursor-pointer font-medium hover:text-blue-600 transition"><input type="checkbox" name="bulk-day" value="2" checked class="w-4 h-4 text-blue-600 rounded"> 火</label>
+                        <label class="flex items-center gap-1.5 cursor-pointer font-medium hover:text-blue-600 transition"><input type="checkbox" name="bulk-day" value="3" checked class="w-4 h-4 text-blue-600 rounded"> 水</label>
+                        <label class="flex items-center gap-1.5 cursor-pointer font-medium hover:text-blue-600 transition"><input type="checkbox" name="bulk-day" value="4" checked class="w-4 h-4 text-blue-600 rounded"> 木</label>
+                        <label class="flex items-center gap-1.5 cursor-pointer font-medium hover:text-blue-600 transition"><input type="checkbox" name="bulk-day" value="5" checked class="w-4 h-4 text-blue-600 rounded"> 金</label>
+                        <label class="flex items-center gap-1.5 cursor-pointer text-slate-400 hover:text-slate-600 transition"><input type="checkbox" name="bulk-day" value="6" class="w-4 h-4 rounded"> 土</label>
+                        <label class="flex items-center gap-1.5 cursor-pointer text-slate-400 hover:text-slate-600 transition"><input type="checkbox" name="bulk-day" value="0" class="w-4 h-4 rounded"> 日</label>
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1.5">講師名 (任意)</label>
-                    <input type="text" id="bulk-instructor" placeholder="例: 山田 太郎"
-                        class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition">
+                    <input type="text" id="bulk-instructor" placeholder="例: 山田 太郎" class="w-full border border-slate-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition">
                 </div>
 
             </div>
             <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-end">
                 <div class="flex gap-2">
-                    <button type="button" onclick="closeModal('bulk-add-modal')"
-                        class="px-4 py-2 border border-slate-300 text-slate-700 bg-white rounded-md hover:bg-slate-50 text-sm font-medium transition shadow-sm">キャンセル</button>
-                    <button type="button" onclick="executeBulkAdd()"
-                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition shadow-sm shadow-blue-500/30">一括配置する</button>
+                    <button type="button" onclick="closeModal('bulk-add-modal')" class="px-4 py-2 border border-slate-300 text-slate-700 bg-white rounded-md hover:bg-slate-50 text-sm font-medium transition shadow-sm">キャンセル</button>
+                    <button type="button" onclick="executeBulkAdd()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition shadow-sm shadow-blue-500/30">一括配置する</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- モーダル：ラベル管理 -->
-    <div id="label-manager-modal"
-        class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50">
+    <div id="label-manager-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-2xl w-[600px] flex flex-col max-h-[80vh]">
             <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
                 <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-500" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
                     ラベル設定
                 </h3>
-                <button onclick="closeModal('label-manager-modal')"
-                    class="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1 transition">&times;</button>
+                <button onclick="closeModal('label-manager-modal')" class="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1 transition">&times;</button>
             </div>
             <div class="p-6 overflow-y-auto flex-1">
-
+                
                 <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6 shadow-sm">
                     <h4 class="font-bold text-blue-800 mb-3 text-sm">＋ 新規ラベル追加</h4>
                     <div class="flex gap-3 items-center">
-                        <input type="color" id="new-label-color" value="#3b82f6"
-                            class="w-10 h-10 rounded-md cursor-pointer border-0 p-0 shadow-sm">
-                        <input type="text" id="new-label-name" placeholder="ラベル名 (例: ワークショップ)"
-                            class="flex-1 border border-slate-300 rounded-md p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 shadow-sm">
-                        <button onclick="addLabel()"
-                            class="px-4 py-2.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition whitespace-nowrap shadow-sm shadow-blue-500/30">追加</button>
+                        <input type="color" id="new-label-color" value="#3b82f6" class="w-10 h-10 rounded-md cursor-pointer border-0 p-0 shadow-sm">
+                        <input type="text" id="new-label-name" placeholder="ラベル名 (例: ワークショップ)" class="flex-1 border border-slate-300 rounded-md p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 shadow-sm">
+                        <button onclick="addLabel()" class="px-4 py-2.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition whitespace-nowrap shadow-sm shadow-blue-500/30">追加</button>
                     </div>
                 </div>
 
@@ -534,32 +367,24 @@
                 </div>
             </div>
             <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-xl text-right">
-                <button onclick="closeModal('label-manager-modal')"
-                    class="px-6 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 text-sm font-medium transition shadow-sm">完了</button>
+                <button onclick="closeModal('label-manager-modal')" class="px-6 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 text-sm font-medium transition shadow-sm">完了</button>
             </div>
         </div>
     </div>
 
     <!-- モーダル：集計表示 -->
-    <div id="summary-modal"
-        class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50">
+    <div id="summary-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-2xl w-[700px] flex flex-col max-h-[85vh]">
             <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
                 <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-500" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                     時間集計レポート
                 </h3>
-                <button onclick="closeModal('summary-modal')"
-                    class="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1 transition">&times;</button>
+                <button onclick="closeModal('summary-modal')" class="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1 transition">&times;</button>
             </div>
             <div class="p-6 overflow-y-auto flex-1">
-                <p class="text-sm text-slate-600 mb-4 bg-slate-50 p-3 rounded-md border border-slate-200"
-                    id="summary-desc"></p>
-
+                <p class="text-sm text-slate-600 mb-4 bg-slate-50 p-3 rounded-md border border-slate-200" id="summary-desc"></p>
+                
                 <div class="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
                     <table class="min-w-full divide-y divide-slate-200 text-sm text-left">
                         <thead class="bg-slate-50">
@@ -579,34 +404,32 @@
                 </div>
             </div>
             <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-xl text-right">
-                <button onclick="closeModal('summary-modal')"
-                    class="px-6 py-2 border border-slate-300 text-slate-700 bg-white rounded-md hover:bg-slate-50 text-sm font-medium transition shadow-sm">閉じる</button>
+                <button onclick="closeModal('summary-modal')" class="px-6 py-2 border border-slate-300 text-slate-700 bg-white rounded-md hover:bg-slate-50 text-sm font-medium transition shadow-sm">閉じる</button>
             </div>
         </div>
     </div>
 
     <!-- モーダル：講師別サマリ -->
-    <div id="instructor-summary-modal"
-        class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50">
+    <div id="instructor-summary-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-2xl w-[800px] flex flex-col max-h-[85vh]">
             <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
                 <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-500" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                     講師別サマリ（担当講義一覧）
                 </h3>
-                <button onclick="closeModal('instructor-summary-modal')"
-                    class="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1 transition">&times;</button>
+                <button onclick="closeModal('instructor-summary-modal')" class="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-1 transition">&times;</button>
+            </div>
+            <div class="px-6 py-3 border-b border-slate-100 bg-white">
+                <div class="relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    <input type="text" id="instructor-search-input" placeholder="講師名で検索..." class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition" oninput="filterInstructors()">
+                </div>
             </div>
             <div class="p-6 overflow-y-auto flex-1 space-y-6" id="instructor-summary-content">
                 <!-- JSで生成 -->
             </div>
             <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-xl text-right">
-                <button onclick="closeModal('instructor-summary-modal')"
-                    class="px-6 py-2 border border-slate-300 text-slate-700 bg-white rounded-md hover:bg-slate-50 text-sm font-medium transition shadow-sm">閉じる</button>
+                <button onclick="closeModal('instructor-summary-modal')" class="px-6 py-2 border border-slate-300 text-slate-700 bg-white rounded-md hover:bg-slate-50 text-sm font-medium transition shadow-sm">閉じる</button>
             </div>
         </div>
     </div>
@@ -614,7 +437,7 @@
     <script>
         // --- データ構造と状態管理 ---
         const PIXELS_PER_MINUTE = 2; // 1時間 = 120px
-
+        
         const defaultAppData = {
             labels: [
                 { id: 'l1', name: '座学', color: '#3b82f6' },
@@ -623,12 +446,12 @@
                 { id: 'l4', name: 'テスト', color: '#f59e0b' }
             ],
             sessions: [],
-            title: "研修カリキュラム"
+            title: "研修カリキュラム" 
         };
-
+        
         let appData = JSON.parse(localStorage.getItem('curriculumMakerData')) || defaultAppData;
         let storedDate = localStorage.getItem('curriculumMakerDate') || new Date().toISOString().split('T')[0];
-
+        
         function getMonday(dateStr) {
             let d = new Date(dateStr);
             const day = d.getDay();
@@ -638,7 +461,7 @@
         }
 
         let currentDate = getMonday(storedDate);
-
+        
         let displayStartHour = parseInt(localStorage.getItem('curriculumMakerStartHour')) || 0;
         let displayEndHour = parseInt(localStorage.getItem('curriculumMakerEndHour')) || 24;
 
@@ -654,7 +477,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('current-date').value = currentDate;
             document.getElementById('curriculum-title').value = appData.title || "研修カリキュラム";
-
+            
             const startSelect = document.getElementById('display-start-hour');
             const endSelect = document.getElementById('display-end-hour');
             for (let i = 0; i <= 23; i++) {
@@ -668,16 +491,16 @@
 
             initTimeAxis();
             renderApp();
-
+            
             setTimeout(() => {
                 const scrollArea = document.getElementById('timeline-scroll-area');
                 const targetHour = displayStartHour <= 8 && displayEndHour >= 10 ? 8 : displayStartHour;
                 scrollArea.scrollTop = (targetHour - displayStartHour) * 60 * PIXELS_PER_MINUTE - 20;
             }, 100);
-
+            
             // 1分ごとに現在時刻の線を更新するタイマー
             setInterval(() => {
-                if (document.querySelector('.current-time-line')) {
+                if(document.querySelector('.current-time-line')) {
                     renderApp(); // 簡易的に全体を再描画して線を更新
                 }
             }, 60000);
@@ -717,7 +540,7 @@
         // --- UI描画系 ---
         function renderApp() {
             saveState();
-
+            
             let startD = new Date(currentDate);
             const dates = [];
             for (let i = 0; i < 5; i++) {
@@ -725,22 +548,22 @@
                 temp.setDate(startD.getDate() + i);
                 dates.push(temp);
             }
-
-            const formatD = (d) => `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+            
+            const formatD = (d) => `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
             document.getElementById('timeline-title').textContent = `${formatD(dates[0])} 〜 ${formatD(dates[4])}`;
 
             const days = ['日', '月', '火', '水', '木', '金', '土'];
             const headerCols = document.getElementById('timeline-day-headers');
             headerCols.innerHTML = `<div class="w-16 flex-shrink-0 bg-slate-50 border-r border-slate-200"></div>`;
-
+            
             const todayStr = new Date().toISOString().split('T')[0];
-
+            
             dates.forEach((d) => {
                 const dateStr = d.toISOString().split('T')[0];
                 const isToday = dateStr === todayStr;
                 const isTodayBadge = isToday ? '<span class="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold">今日</span>' : '';
-                const dayStr = `${d.getMonth() + 1}/${d.getDate()} (${days[d.getDay()]})`;
-
+                const dayStr = `${d.getMonth()+1}/${d.getDate()} (${days[d.getDay()]})`;
+                
                 const colClass = isToday ? 'bg-blue-50/30 text-blue-800' : 'bg-white text-slate-700';
                 headerCols.innerHTML += `
                     <div class="flex-1 text-center py-2.5 text-sm font-bold border-r border-slate-200 ${colClass} flex items-center justify-center relative group">
@@ -767,27 +590,27 @@
             dates.forEach((d) => {
                 const dateStr = d.toISOString().split('T')[0];
                 const isToday = dateStr === todayStr;
-
+                
                 const col = document.createElement('div');
                 col.className = `flex-1 relative timeline-bg border-r border-slate-200 day-column transition-colors ${isToday ? 'bg-blue-50/10' : ''}`;
                 col.style.height = `${height}px`;
                 col.setAttribute('data-date', dateStr);
-
+                
                 col.ondragover = handleDragOver;
                 col.ondragenter = (e) => col.classList.add('drag-over');
                 col.ondragleave = (e) => col.classList.remove('drag-over');
                 col.ondrop = handleDrop;
-
+                
                 // 空白クリックで新規作成
                 col.onclick = (e) => handleEmptyClick(e, dateStr);
-
+                
                 // 現在時刻ラインの描画
                 if (isToday) {
                     const now = new Date();
                     const currentMins = now.getHours() * 60 + now.getMinutes();
                     const displayStartMins = displayStartHour * 60;
                     const displayEndMins = displayEndHour * 60;
-
+                    
                     if (currentMins >= displayStartMins && currentMins <= displayEndMins) {
                         const top = (currentMins - displayStartMins) * PIXELS_PER_MINUTE;
                         const timeLine = document.createElement('div');
@@ -796,7 +619,7 @@
                         col.appendChild(timeLine);
                     }
                 }
-
+                
                 // セッションの描画（重複計算を追加）
                 const daySessions = appData.sessions.filter(s => s.date === dateStr);
                 layoutSessions(daySessions);
@@ -811,7 +634,7 @@
         function initTimeAxis() {
             const container = document.getElementById('time-axis');
             container.innerHTML = '';
-
+            
             const totalHours = displayEndHour - displayStartHour;
             const height = totalHours * 60 * PIXELS_PER_MINUTE;
             container.style.height = `${height}px`;
@@ -830,14 +653,14 @@
         function renderLabelsPalette() {
             const container = document.getElementById('label-palette');
             container.innerHTML = '';
-
+            
             appData.labels.forEach(label => {
                 const el = document.createElement('div');
                 el.className = 'p-3 rounded-md text-white shadow-sm cursor-grab active:cursor-grabbing font-bold text-sm flex items-center justify-between transition-all hover:-translate-y-0.5 hover:shadow-md border border-black/10';
                 el.style.backgroundColor = label.color;
                 el.draggable = true;
                 el.textContent = label.name;
-
+                
                 el.addEventListener('dragstart', (e) => {
                     e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'label', id: label.id }));
                     e.dataTransfer.effectAllowed = 'copyMove';
@@ -860,7 +683,7 @@
 
             const top = (renderStartMins - displayStartMins) * PIXELS_PER_MINUTE;
             const height = (renderEndMins - renderStartMins) * PIXELS_PER_MINUTE;
-
+            
             const label = appData.labels.find(l => l.id === session.labelId);
             const color = label ? label.color : '#6b7280';
 
@@ -872,15 +695,15 @@
             el.style.width = `calc(${session._width}% - 4px)`;
             el.style.backgroundColor = color;
             el.draggable = true;
-
+            
             const titleText = session.title || '（未設定）';
-
+            
             // ツールチップの設定
             let tooltipText = `【${label ? label.name : '未設定'}】${titleText}\n時間: ${session.startTime} - ${session.endTime}`;
-            if (session.instructor) tooltipText += `\n講師: ${session.instructor}`;
-            if (session.details) tooltipText += `\nメモ: ${session.details}`;
+            if(session.instructor) tooltipText += `\n講師: ${session.instructor}`;
+            if(session.details) tooltipText += `\nメモ: ${session.details}`;
             el.title = tooltipText;
-
+            
             el.addEventListener('dragstart', (e) => {
                 e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'session', id: session.id }));
                 e.dataTransfer.effectAllowed = 'copyMove';
@@ -891,7 +714,7 @@
             });
 
             const isLightColor = isLight(color);
-            if (isLightColor) el.classList.add('text-slate-800');
+            if(isLightColor) el.classList.add('text-slate-800');
 
             const isShort = height < 40;
 
@@ -900,20 +723,20 @@
                 ${!isShort ? `<div class="session-time-display opacity-90 mt-0.5 flex items-center gap-1">🕒 ${session.startTime}-${session.endTime}</div>` : ''}
                 ${!isShort && session.instructor ? `<div class="mt-0.5 opacity-90 truncate">👤 ${session.instructor}</div>` : ''}
             `;
-
+            
             const handleTop = document.createElement('div');
             handleTop.className = 'resize-handle resize-handle-top';
             handleTop.onmousedown = (e) => startResize(e, session.id, 'top', el);
             handleTop.onclick = (e) => e.stopPropagation();
-
+            
             const handleBottom = document.createElement('div');
             handleBottom.className = 'resize-handle resize-handle-bottom';
             handleBottom.onmousedown = (e) => startResize(e, session.id, 'bottom', el);
             handleBottom.onclick = (e) => e.stopPropagation();
-
+            
             el.appendChild(handleTop);
             el.appendChild(handleBottom);
-
+            
             el.onclick = (e) => {
                 e.stopPropagation(); // 空白クリック判定に伝播させない
                 openSessionModal(session.id);
@@ -927,7 +750,7 @@
             if (resizeState) return;
 
             const rect = e.currentTarget.getBoundingClientRect();
-            const y = e.clientY - rect.top;
+            const y = e.clientY - rect.top; 
             let minutes = Math.floor(y / PIXELS_PER_MINUTE) + (displayStartHour * 60);
             minutes = Math.floor(minutes / 15) * 15; // 15分単位でスナップ
 
@@ -947,14 +770,14 @@
         function startResize(e, sessionId, type, element) {
             e.preventDefault();
             e.stopPropagation();
-
+            
             element.draggable = false;
             element.style.zIndex = '50';
             element.style.transform = 'none';
-
+            
             const session = appData.sessions.find(s => s.id === sessionId);
             if (!session) return;
-
+            
             resizeState = {
                 sessionId,
                 type,
@@ -963,20 +786,20 @@
                 originalEndMins: timeToMins(session.endTime),
                 startY: e.clientY
             };
-
+            
             document.addEventListener('mousemove', onResizeMove);
             document.addEventListener('mouseup', onResizeEnd);
         }
 
         function onResizeMove(e) {
             if (!resizeState) return;
-
+            
             const deltaY = e.clientY - resizeState.startY;
             let deltaMins = Math.round((deltaY / PIXELS_PER_MINUTE) / 15) * 15;
-
+            
             let newStartMins = resizeState.originalStartMins;
             let newEndMins = resizeState.originalEndMins;
-
+            
             if (resizeState.type === 'top') {
                 newStartMins += deltaMins;
                 if (newStartMins > newEndMins - 15) newStartMins = newEndMins - 15;
@@ -986,17 +809,17 @@
                 if (newEndMins < newStartMins + 15) newEndMins = newStartMins + 15;
                 if (newEndMins > 24 * 60) newEndMins = 24 * 60;
             }
-
+            
             resizeState.newStartMins = newStartMins;
             resizeState.newEndMins = newEndMins;
-
+            
             const displayStartMins = displayStartHour * 60;
             const top = (newStartMins - displayStartMins) * PIXELS_PER_MINUTE;
             const height = (newEndMins - newStartMins) * PIXELS_PER_MINUTE;
-
+            
             resizeState.element.style.top = `${top}px`;
             resizeState.element.style.height = `${height}px`;
-
+            
             const timeDiv = resizeState.element.querySelector('.session-time-display');
             if (timeDiv) {
                 timeDiv.innerHTML = `🕒 ${minsToTime(newStartMins)}-${minsToTime(newEndMins)}`;
@@ -1005,17 +828,17 @@
 
         function onResizeEnd(e) {
             if (!resizeState) return;
-
+            
             document.removeEventListener('mousemove', onResizeMove);
             document.removeEventListener('mouseup', onResizeEnd);
-
+            
             const session = appData.sessions.find(s => s.id === resizeState.sessionId);
             if (session && resizeState.newStartMins !== undefined) {
                 session.startTime = minsToTime(resizeState.newStartMins);
                 session.endTime = minsToTime(resizeState.newEndMins);
                 saveState();
             }
-
+            
             // 少し遅延させてクリックイベントの暴発を防ぐ
             setTimeout(() => { resizeState = null; }, 100);
             renderApp();
@@ -1041,13 +864,13 @@
             let dragData;
             try {
                 dragData = JSON.parse(jsonStr);
-            } catch (err) { return; }
+            } catch(err) { return; }
 
             const targetDate = e.currentTarget.getAttribute('data-date');
             if (!targetDate) return;
 
             const rect = e.currentTarget.getBoundingClientRect();
-            const y = e.clientY - rect.top;
+            const y = e.clientY - rect.top; 
             let minutes = Math.floor(y / PIXELS_PER_MINUTE) + (displayStartHour * 60);
             minutes = Math.floor(minutes / 15) * 15;
 
@@ -1071,7 +894,7 @@
                 const duration = timeToMins(session.endTime) - timeToMins(session.startTime);
                 const newStartTime = minsToTime(minutes);
                 let newEndMins = minutes + duration;
-
+                
                 if (newEndMins > 24 * 60) newEndMins = 24 * 60;
                 const newEndTime = minsToTime(newEndMins);
 
@@ -1100,7 +923,7 @@
             const modal = document.getElementById('session-modal');
             const titleEl = document.getElementById('session-modal-title');
             const btnDelete = document.getElementById('btn-delete-session');
-
+            
             const select = document.getElementById('session-label');
             select.innerHTML = appData.labels.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
 
@@ -1112,9 +935,9 @@
             if (sessionId) {
                 titleEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg> 講義の編集';
                 btnDelete.classList.remove('hidden');
-
+                
                 const session = appData.sessions.find(s => s.id === sessionId);
-                if (session) {
+                if(session) {
                     document.getElementById('session-id').value = session.id;
                     document.getElementById('session-date').value = session.date;
                     document.getElementById('session-start').value = session.startTime;
@@ -1127,11 +950,11 @@
             } else {
                 titleEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> 講義の追加';
                 btnDelete.classList.add('hidden');
-
+                
                 document.getElementById('session-date').value = defaultData ? defaultData.date : currentDate;
                 document.getElementById('session-start').value = defaultData ? defaultData.startTime : '09:00';
                 document.getElementById('session-end').value = defaultData ? defaultData.endTime : '10:00';
-
+                
                 if (appData.labels.length > 0) {
                     document.getElementById('session-label').value = appData.labels[0].id;
                 }
@@ -1139,7 +962,7 @@
 
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-
+            
             // アニメーション用のちょっとしたハック
             setTimeout(() => {
                 document.getElementById('session-modal-content').classList.remove('scale-95');
@@ -1196,15 +1019,15 @@
         // --- 一括配置機能 ---
         function openBulkAddModal() {
             const modal = document.getElementById('bulk-add-modal');
-
+            
             const select = document.getElementById('bulk-label');
             select.innerHTML = appData.labels.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
 
             const startDateInput = document.getElementById('bulk-start-date');
             const endDateInput = document.getElementById('bulk-end-date');
-
+            
             startDateInput.value = currentDate;
-
+            
             const startD = new Date(currentDate);
             const dayOffset = startD.getDay() === 0 ? -2 : (5 - startD.getDay());
             const endD = new Date(startD);
@@ -1282,7 +1105,7 @@
         function renderLabelEditorList() {
             const container = document.getElementById('label-list-editor');
             container.innerHTML = '';
-
+            
             appData.labels.forEach(label => {
                 const div = document.createElement('div');
                 div.className = 'flex items-center gap-3 p-2 bg-white border border-slate-200 rounded-md shadow-sm';
@@ -1309,11 +1132,11 @@
             }
 
             appData.labels.push({ id: generateId(), name, color });
-            nameEl.value = '';
-
+            nameEl.value = ''; 
+            
             saveState();
             renderLabelEditorList();
-            renderApp();
+            renderApp(); 
         }
 
         function updateLabelName(id, newName) {
@@ -1340,7 +1163,7 @@
                 alert('このラベルは既に講義で使用されているため削除できません。');
                 return;
             }
-            if (confirm('このラベルを削除しますか？')) {
+            if(confirm('このラベルを削除しますか？')) {
                 appData.labels = appData.labels.filter(l => l.id !== id);
                 saveState();
                 renderLabelEditorList();
@@ -1354,7 +1177,7 @@
             const tfoot = document.getElementById('summary-table-foot');
             const desc = document.getElementById('summary-desc');
             tbody.innerHTML = '';
-
+            
             const weekDaysStr = getWeekDays(currentDate);
             desc.innerHTML = `表示週: <strong>${weekDaysStr[0].replace(/-/g, '/')} 〜 ${weekDaysStr[4].replace(/-/g, '/')}</strong>`;
 
@@ -1365,9 +1188,9 @@
 
                 appData.sessions.forEach(session => {
                     if (session.labelId !== label.id) return;
-
+                    
                     const duration = (timeToMins(session.endTime) - timeToMins(session.startTime)) / 60;
-
+                    
                     all += duration;
                     if (session.date >= weekDaysStr[0] && session.date <= weekDaysStr[4]) weekly += duration;
                 });
@@ -1406,9 +1229,12 @@
         function openInstructorSummaryModal() {
             const container = document.getElementById('instructor-summary-content');
             container.innerHTML = '';
-
-            const instructorMap = {};
-
+            
+            const searchInput = document.getElementById('instructor-search-input');
+            if (searchInput) searchInput.value = '';
+            
+            const instructorMap = {}; 
+            
             // 日付順・時間順にソート
             const sortedSessions = [...appData.sessions].sort((a, b) => {
                 if (a.date !== b.date) return a.date.localeCompare(b.date);
@@ -1429,10 +1255,10 @@
                 container.innerHTML = '<p class="text-slate-500 text-center py-8 font-medium">登録されている講義がありません。</p>';
             } else {
                 instructors.forEach(inst => {
-                    if (inst === '（未設定）') return;
+                    if(inst === '（未設定）') return; 
                     container.appendChild(createInstructorSection(inst, instructorMap[inst]));
                 });
-
+                
                 if (instructorMap['（未設定）'] && instructorMap['（未設定）'].length > 0) {
                     container.appendChild(createInstructorSection('（未設定）', instructorMap['（未設定）']));
                 }
@@ -1445,8 +1271,9 @@
 
         function createInstructorSection(instructorName, sessions) {
             const section = document.createElement('div');
-            section.className = 'bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm';
-
+            section.className = 'bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm instructor-section';
+            section.dataset.instructorName = instructorName.toLowerCase();
+            
             let totalMins = 0;
             sessions.forEach(s => {
                 totalMins += timeToMins(s.endTime) - timeToMins(s.startTime);
@@ -1470,15 +1297,15 @@
             sessions.forEach(session => {
                 const item = document.createElement('div');
                 item.className = 'px-4 py-3 flex items-start gap-4 hover:bg-slate-50 transition';
-
+                
                 const label = appData.labels.find(l => l.id === session.labelId);
                 const color = label ? label.color : '#64748b';
 
                 const duration = (timeToMins(session.endTime) - timeToMins(session.startTime)) / 60;
-
+                
                 const d = new Date(session.date);
                 const days = ['日', '月', '火', '水', '木', '金', '土'];
-                const dateStr = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} (${days[d.getDay()]})`;
+                const dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} (${days[d.getDay()]})`;
 
                 item.innerHTML = `
                     <div class="flex-shrink-0 w-32 text-sm font-medium text-slate-600 mt-0.5">
@@ -1505,14 +1332,44 @@
             return section;
         }
 
+        function filterInstructors() {
+            const query = document.getElementById('instructor-search-input').value.toLowerCase();
+            const sections = document.querySelectorAll('.instructor-section');
+            let hasVisible = false;
+
+            sections.forEach(section => {
+                const name = section.dataset.instructorName;
+                if (name.includes(query)) {
+                    section.style.display = 'block';
+                    hasVisible = true;
+                } else {
+                    section.style.display = 'none';
+                }
+            });
+
+            let noResultMsg = document.getElementById('instructor-no-result');
+            if (!hasVisible && sections.length > 0) {
+                if (!noResultMsg) {
+                    noResultMsg = document.createElement('p');
+                    noResultMsg.id = 'instructor-no-result';
+                    noResultMsg.className = 'text-slate-500 text-center py-8 font-medium';
+                    noResultMsg.textContent = '該当する講師が見つかりません。';
+                    document.getElementById('instructor-summary-content').appendChild(noResultMsg);
+                }
+                noResultMsg.style.display = 'block';
+            } else if (noResultMsg) {
+                noResultMsg.style.display = 'none';
+            }
+        }
+
         // --- インポート・エクスポート ---
         function exportData() {
             const dataStr = JSON.stringify(appData, null, 2);
             const blob = new Blob([dataStr], { type: "application/json" });
             const url = URL.createObjectURL(blob);
-
+            
             const titleStr = appData.title ? appData.title.trim().replace(/[\/\?<>\\:\*\|":]/g, '') : '研修カリキュラム';
-
+            
             const a = document.createElement('a');
             a.href = url;
             a.download = `${titleStr}_curriculum.json`;
@@ -1532,7 +1389,7 @@
                     const parsed = JSON.parse(e.target.result);
                     if (parsed && parsed.labels && parsed.sessions) {
                         appData = parsed;
-                        document.getElementById('curriculum-title').value = appData.title || "研修カリキュラム";
+                        document.getElementById('curriculum-title').value = appData.title || "研修カリキュラム"; 
                         saveState();
                         renderApp();
                     } else {
@@ -1543,7 +1400,7 @@
                 }
             };
             reader.readAsText(file);
-            event.target.value = '';
+            event.target.value = ''; 
         }
 
         // --- ユーティリティ関数 ---
@@ -1564,7 +1421,7 @@
             if (daySessions.length === 0) return;
             // 開始時間順にソート
             daySessions.sort((a, b) => timeToMins(a.startTime) - timeToMins(b.startTime));
-
+            
             let columns = [];
             let lastEventEnding = null;
             let eventsInGroup = [];
@@ -1627,7 +1484,7 @@
                 id: null,
                 date: null
             }));
-
+            
             alert(`${dateStr}の予定（${sessionsToCopy.length}件）をコピーしました。\n貼り付けたい曜日のペーストボタンを押してください。`);
         }
 
@@ -1667,9 +1524,9 @@
             const day = d.getDay();
             const diff = d.getDate() - day + (day === 0 ? -6 : 1);
             const monday = new Date(d.setDate(diff));
-
+            
             const days = [];
-            for (let i = 0; i < 5; i++) {
+            for(let i=0; i<5; i++) {
                 const temp = new Date(monday);
                 temp.setDate(monday.getDate() + i);
                 days.push(temp.toISOString().split('T')[0]);
@@ -1685,7 +1542,7 @@
 
             try {
                 const weekDaysStr = getWeekDays(currentDate);
-
+                
                 const exportDiv = document.createElement('div');
                 exportDiv.style.position = 'absolute';
                 exportDiv.style.left = '-10000px';
@@ -1695,7 +1552,7 @@
                 exportDiv.style.padding = '20px';
                 exportDiv.style.color = '#1e293b';
                 exportDiv.style.fontFamily = '"Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif';
-
+                
                 const title = document.createElement('h2');
                 title.style.fontSize = '24px';
                 title.style.fontWeight = 'bold';
@@ -1704,26 +1561,26 @@
                 const appTitle = appData.title || '研修カリキュラム';
                 title.textContent = `${appTitle} （${weekDaysStr[0].replace(/-/g, '/')} 〜 ${weekDaysStr[4].replace(/-/g, '/')}）`;
                 exportDiv.appendChild(title);
-
+                
                 const container = document.createElement('div');
                 container.style.display = 'flex';
                 container.style.border = '1px solid #e2e8f0';
                 container.style.backgroundColor = '#f8fafc';
-
+                
                 const totalHours = displayEndHour - displayStartHour;
                 const height = totalHours * 60 * PIXELS_PER_MINUTE;
-
+                
                 const timeAxis = document.createElement('div');
                 timeAxis.style.width = '60px';
                 timeAxis.style.flexShrink = '0';
                 timeAxis.style.borderRight = '1px solid #e2e8f0';
-
+                
                 const timeAxisHeader = document.createElement('div');
                 timeAxisHeader.style.height = '44px';
                 timeAxisHeader.style.borderBottom = '1px solid #e2e8f0';
                 timeAxisHeader.style.backgroundColor = '#ffffff';
                 timeAxis.appendChild(timeAxisHeader);
-
+                
                 const timeAxisContent = document.createElement('div');
                 timeAxisContent.style.position = 'relative';
                 timeAxisContent.style.height = `${height}px`;
@@ -1743,12 +1600,12 @@
                 }
                 timeAxis.appendChild(timeAxisContent);
                 container.appendChild(timeAxis);
-
+                
                 const dayNames = ['月', '火', '水', '木', '金'];
                 const columnsContainer = document.createElement('div');
                 columnsContainer.style.display = 'flex';
                 columnsContainer.style.flex = '1';
-
+                
                 weekDaysStr.forEach((dateStr, index) => {
                     const d = new Date(dateStr);
                     const col = document.createElement('div');
@@ -1756,7 +1613,7 @@
                     col.style.borderRight = index < 4 ? '1px solid #e2e8f0' : 'none';
                     col.style.display = 'flex';
                     col.style.flexDirection = 'column';
-
+                    
                     const header = document.createElement('div');
                     header.style.height = '44px';
                     header.style.display = 'flex';
@@ -1766,9 +1623,9 @@
                     header.style.fontSize = '14px';
                     header.style.borderBottom = '1px solid #e2e8f0';
                     header.style.backgroundColor = '#ffffff';
-                    header.textContent = `${d.getMonth() + 1}/${d.getDate()} (${dayNames[index]})`;
+                    header.textContent = `${d.getMonth()+1}/${d.getDate()} (${dayNames[index]})`;
                     col.appendChild(header);
-
+                    
                     const timelineBg = document.createElement('div');
                     timelineBg.style.position = 'relative';
                     timelineBg.style.flex = '1';
@@ -1777,7 +1634,7 @@
                     timelineBg.style.backgroundSize = `100% ${60 * PIXELS_PER_MINUTE}px, 100% ${30 * PIXELS_PER_MINUTE}px`;
                     timelineBg.style.backgroundPosition = `0 0, 0 ${30 * PIXELS_PER_MINUTE}px`;
                     timelineBg.style.backgroundColor = '#ffffff';
-
+                    
                     const daySessions = appData.sessions.filter(s => s.date === dateStr);
                     layoutSessions(daySessions); // 画像出力時にも重複計算を適用
                     daySessions.forEach(session => {
@@ -1793,10 +1650,10 @@
 
                         const top = (renderStartMins - displayStartMins) * PIXELS_PER_MINUTE;
                         const sessionHeight = (renderEndMins - renderStartMins) * PIXELS_PER_MINUTE;
-
+                        
                         const label = appData.labels.find(l => l.id === session.labelId);
                         const color = label ? label.color : '#64748b';
-
+                        
                         const box = document.createElement('div');
                         box.style.position = 'absolute';
                         box.style.left = `calc(${session._left}% + 2px)`;
@@ -1805,18 +1662,18 @@
                         box.style.height = `${sessionHeight}px`;
                         box.style.backgroundColor = color;
                         box.style.borderRadius = '4px';
-                        box.style.padding = '3px 6px';
+                        box.style.padding = '3px 6px'; 
                         box.style.color = isLight(color) ? '#0f172a' : '#ffffff';
-                        box.style.fontSize = '11px';
+                        box.style.fontSize = '11px'; 
                         box.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
                         box.style.overflow = 'hidden';
                         box.style.border = '1px solid rgba(0,0,0,0.05)';
                         box.style.boxSizing = 'border-box';
-
+                        
                         box.style.display = 'flex';
                         box.style.flexDirection = 'column';
-                        box.style.gap = '0px';
-
+                        box.style.gap = '0px'; 
+                        
                         const isShort = sessionHeight < 50;
                         const titleText = session.title || '（未設定）';
 
@@ -1829,26 +1686,26 @@
                         `;
                         timelineBg.appendChild(box);
                     });
-
+                    
                     col.appendChild(timelineBg);
                     columnsContainer.appendChild(col);
                 });
-
+                
                 container.appendChild(columnsContainer);
                 exportDiv.appendChild(container);
                 document.body.appendChild(exportDiv);
-
+                
                 const canvas = await html2canvas(exportDiv, {
-                    scale: 2,
+                    scale: 2, 
                     backgroundColor: '#ffffff'
                 });
-
+                
                 const titleStr = appData.title ? appData.title.trim().replace(/[\/\?<>\\:\*\|":]/g, '') : 'curriculum';
                 const link = document.createElement('a');
                 link.download = `${titleStr}_${weekDaysStr[0]}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
-
+                
                 document.body.removeChild(exportDiv);
 
             } catch (err) {
@@ -1872,13 +1729,13 @@
 
         function closeModal(modalId) {
             const modal = document.getElementById(modalId);
-
+            
             // 閉じるアニメーション
-            if (modalId === 'session-modal') {
+            if(modalId === 'session-modal') {
                 document.getElementById('session-modal-content').classList.remove('scale-100');
                 document.getElementById('session-modal-content').classList.add('scale-95');
             }
-
+            
             setTimeout(() => {
                 modal.classList.add('hidden');
                 modal.classList.remove('flex');
@@ -1896,5 +1753,4 @@
 
     </script>
 </body>
-
 </html>
