@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>製品設定プランナー</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
+        .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; font-weight: 600; }
+        .tab-inactive { color: #6b7280; }
+        .tab-inactive:hover { color: #374151; background-color: #f9fafb; }
+        
+        /* スクロールバーのカスタマイズ */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- 定数・ユーティリティ ---
+        const PRODUCT_CLASSES = {
+            raw: '原材料',
+            intermediate: '半製品',
+            finished: '商品'
+        };
+
+        const generateId = () => Math.random().toString(36).substr(2, 9);
+
+        const LABOR_COST_PER_DAY = 17000;
+
+        // --- メインコンポーネント ---
+        const App = () => {
+            const [data, setData] = useState({
+                categories: [],
+                products: []
+            });
+            const [activeTab, setActiveTab] = useState('categories'); // categories, raw, intermediate, finished
+            const [isLoaded, setIsLoaded] = useState(false);
+
+            // ローカルストレージからの読み込み
+            useEffect(() => {
+                const savedData = localStorage.getItem('simProductData');
+                if (savedData) {
+                    try {
+                        setData(JSON.parse(savedData));
+                    } catch (e) {
+                        console.error('データの読み込みに失敗しました', e);
+                    }
+                }
+                setIsLoaded(true);
+            }, []);
+
+            // ローカルストレージへの保存
+            useEffect(() => {
+                if (isLoaded) {
+                    localStorage.setItem('simProductData', JSON.stringify(data));
+                }
+            }, [data, isLoaded]);
+
+            // --- 計算ロジック ---
+            const calculatePrice = (product, allProducts, visited = new Set()) => {
+                if (!product) return 0;
+                if (visited.has(product.id)) return 0; // 循環参照防止
+                
+                visited.add(product.id);
+
+                if (product.class === 'raw') {
+                    return Number(product.basePrice) || 0;
+                }
+
+                let materialCost = 0;
+                product.materials.forEach(mat => {
+                    if (mat.productId) {
+                        const matProduct = allProducts.find(p => p.id === mat.productId);
+                        if (matProduct) {
+                            const unitPrice = calculatePrice(matProduct, allProducts, new Set(visited));
+                            materialCost += unitPrice * (Number(mat.quantity) || 0);
+                        }
+                    }
+                });
+
+                return materialCost * 2;
+            };
+
+            const calculateLaborCostRate = (manDays, price) => {
+                if (!price || price === 0) return 0;
+                return ((LABOR_COST_PER_DAY * (Number(manDays) || 0)) / price) * 100;
+            };
+
+            // --- データ操作 ---
+            const addCategory = (name) => {
+                const newCategory = { id: generateId(), name };
+                setData(prev => ({ ...prev, categories: [...prev.categories, newCategory] }));
+            };
+
+            const updateCategory = (id, name) => {
+                setData(prev => ({
+                    ...prev,
+                    categories: prev.categories.map(c => c.id === id ? { ...c, name } : c)
+                }));
+            };
+
+            const deleteCategory = (id) => {
+                const isUsed = data.products.some(p => p.categoryId === id);
+                if (isUsed) {
+                    alert('このカテゴリは製品で使用されているため削除できません。');
+                    return;
+                }
+                if (confirm('カテゴリを削除しますか？')) {
+                    setData(prev => ({
+                        ...prev,
+                        categories: prev.categories.filter(c => c.id !== id)
+                    }));
+                }
+            };
+
+            const saveProduct = (product) => {
+                setData(prev => {
+                    const exists = prev.products.some(p => p.id === product.id);
+                    if (exists) {
+                        return { ...prev, products: prev.products.map(p => p.id === product.id ? product : p) };
+                    } else {
+                        return { ...prev, products: [...prev.products, product] };
+                    }
+                });
+            };
+
+            const deleteProduct = (id) => {
+                const isUsedAsMaterial = data.products.some(p => 
+                    p.materials.some(m => m.productId === id)
+                );
+                if (isUsedAsMaterial) {
+                    alert('この製品は他の製品の材料として使用されているため削除できません。');
+                    return;
+                }
+                if (confirm('製品を削除しますか？')) {
+                    setData(prev => ({
+                        ...prev,
+                        products: prev.products.filter(p => p.id !== id)
+                    }));
+                }
+            };
+
+            // --- JSON インポート/エクスポート ---
+            const handleExport = () => {
+                const dataStr = JSON.stringify(data, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+                const exportFileDefaultName = 'product_settings.json';
+
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+            };
+
+            const handleImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const importedData = JSON.parse(event.target.result);
+                        if (importedData.categories && importedData.products) {
+                            setData(importedData);
+                            alert('データをインポートしました。');
+                        } else {
+                            alert('無効なデータ形式です。');
+                        }
+                    } catch (error) {
+                        alert('JSONファイルの解析に失敗しました。');
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = null; // リセット
+            };
+
+            if (!isLoaded) return <div className="flex items-center justify-center h-screen">Loading...</div>;
+
+            return (
+                <div className="min-h-screen flex flex-col">
+                    {/* Header */}
+                    <header className="bg-slate-800 text-white shadow-md">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-xl font-bold">
+                                <i className="fa-solid fa-industry text-blue-400"></i>
+                                製品設定プランナー
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <label className="cursor-pointer bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-2">
+                                    <i className="fa-solid fa-file-import"></i> インポート
+                                    <input type="file" accept=".json" className="hidden" onChange={handleImport} />
+                                </label>
+                                <button onClick={handleExport} className="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-2">
+                                    <i className="fa-solid fa-file-export"></i> エクスポート
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Navigation */}
+                    <div className="bg-white border-b border-gray-200">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <nav className="flex -mb-px space-x-8">
+                                <button
+                                    className={`py-4 px-1 whitespace-nowrap ${activeTab === 'categories' ? 'tab-active' : 'tab-inactive'}`}
+                                    onClick={() => setActiveTab('categories')}
+                                >
+                                    <i className="fa-solid fa-tags mr-2"></i>カテゴリ管理
+                                </button>
+                                <button
+                                    className={`py-4 px-1 whitespace-nowrap ${activeTab === 'raw' ? 'tab-active' : 'tab-inactive'}`}
+                                    onClick={() => setActiveTab('raw')}
+                                >
+                                    <i className="fa-solid fa-leaf mr-2"></i>原材料
+                                </button>
+                                <button
+                                    className={`py-4 px-1 whitespace-nowrap ${activeTab === 'intermediate' ? 'tab-active' : 'tab-inactive'}`}
+                                    onClick={() => setActiveTab('intermediate')}
+                                >
+                                    <i className="fa-solid fa-gear mr-2"></i>半製品
+                                </button>
+                                <button
+                                    className={`py-4 px-1 whitespace-nowrap ${activeTab === 'finished' ? 'tab-active' : 'tab-inactive'}`}
+                                    onClick={() => setActiveTab('finished')}
+                                >
+                                    <i className="fa-solid fa-box mr-2"></i>商品
+                                </button>
+                            </nav>
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        {activeTab === 'categories' && (
+                            <CategoryManager 
+                                categories={data.categories} 
+                                onAdd={addCategory} 
+                                onUpdate={updateCategory} 
+                                onDelete={deleteCategory} 
+                            />
+                        )}
+                        {['raw', 'intermediate', 'finished'].includes(activeTab) && (
+                            <ProductManager 
+                                productClass={activeTab}
+                                data={data}
+                                onSave={saveProduct}
+                                onDelete={deleteProduct}
+                                calculatePrice={calculatePrice}
+                                calculateLaborCostRate={calculateLaborCostRate}
+                            />
+                        )}
+                    </main>
+                </div>
+            );
+        };
+
+        // --- カテゴリ管理コンポーネント ---
+        const CategoryManager = ({ categories, onAdd, onUpdate, onDelete }) => {
+            const [newName, setNewName] = useState('');
+            const [editingId, setEditingId] = useState(null);
+            const [editName, setEditName] = useState('');
+
+            const handleAdd = (e) => {
+                e.preventDefault();
+                if (!newName.trim()) return;
+                onAdd(newName.trim());
+                setNewName('');
+            };
+
+            const handleStartEdit = (category) => {
+                setEditingId(category.id);
+                setEditName(category.name);
+            };
+
+            const handleSaveEdit = () => {
+                if (editName.trim()) {
+                    onUpdate(editingId, editName.trim());
+                }
+                setEditingId(null);
+            };
+
+            return (
+                <div className="bg-white shadow rounded-lg p-6">
+                    <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><i className="fa-solid fa-tags text-gray-500"></i>カテゴリの管理</h2>
+                    
+                    <form onSubmit={handleAdd} className="flex gap-2 mb-6">
+                        <input
+                            type="text"
+                            placeholder="新しいカテゴリ名"
+                            className="flex-1 border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                        />
+                        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                            追加
+                        </button>
+                    </form>
+
+                    <div className="border border-gray-200 rounded-md overflow-hidden">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">カテゴリ名</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {categories.length === 0 ? (
+                                    <tr><td colSpan="2" className="px-6 py-4 text-center text-gray-500">カテゴリがありません</td></tr>
+                                ) : categories.map(cat => (
+                                    <tr key={cat.id}>
+                                        <td className="px-6 py-4">
+                                            {editingId === cat.id ? (
+                                                <input
+                                                    type="text"
+                                                    className="border border-blue-500 rounded px-2 py-1 w-full"
+                                                    value={editName}
+                                                    onChange={(e) => setEditName(e.target.value)}
+                                                    autoFocus
+                                                    onBlur={handleSaveEdit}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
+                                                />
+                                            ) : (
+                                                <span className="text-sm text-gray-900">{cat.name}</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-sm font-medium">
+                                            {editingId !== cat.id && (
+                                                <>
+                                                    <button onClick={() => handleStartEdit(cat)} className="text-blue-600 hover:text-blue-900 mr-3" title="編集">
+                                                        <i className="fa-solid fa-pen"></i>
+                                                    </button>
+                                                    <button onClick={() => onDelete(cat.id)} className="text-red-600 hover:text-red-900" title="削除">
+                                                        <i className="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 製品管理コンポーネント ---
+        const ProductManager = ({ productClass, data, onSave, onDelete, calculatePrice, calculateLaborCostRate }) => {
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [editingProduct, setEditingProduct] = useState(null);
+
+            const filteredProducts = data.products.filter(p => p.class === productClass);
+
+            const handleAddNew = () => {
+                setEditingProduct(null);
+                setIsModalOpen(true);
+            };
+
+            const handleEdit = (product) => {
+                setEditingProduct(product);
+                setIsModalOpen(true);
+            };
+
+            const formatCurrency = (num) => new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(num);
+
+            return (
+                <div className="bg-white shadow rounded-lg p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold flex items-center gap-2">
+                            {productClass === 'raw' && <i className="fa-solid fa-leaf text-green-500"></i>}
+                            {productClass === 'intermediate' && <i className="fa-solid fa-gear text-orange-500"></i>}
+                            {productClass === 'finished' && <i className="fa-solid fa-box text-blue-500"></i>}
+                            {PRODUCT_CLASSES[productClass]}一覧
+                        </h2>
+                        <button onClick={handleAddNew} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2">
+                            <i className="fa-solid fa-plus"></i> 製品を追加
+                        </button>
+                    </div>
+
+                    <div className="overflow-x-auto border border-gray-200 rounded-md">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">名称</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">カテゴリ</th>
+                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">工数(人日)</th>
+                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">売値</th>
+                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">人件費率</th>
+                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {filteredProducts.length === 0 ? (
+                                    <tr><td colSpan="6" className="px-6 py-8 text-center text-gray-500">製品が登録されていません</td></tr>
+                                ) : filteredProducts.map(product => {
+                                    const category = data.categories.find(c => c.id === product.categoryId);
+                                    const price = calculatePrice(product, data.products);
+                                    const laborRate = calculateLaborCostRate(product.manDays, price);
+                                    
+                                    return (
+                                        <tr key={product.id} className="hover:bg-gray-50">
+                                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{product.name}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-500">
+                                                {category ? <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded border">{category.name}</span> : '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">{product.manDays}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">{formatCurrency(price)}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                <span className={laborRate > 100 ? 'text-red-600 font-bold' : ''}>
+                                                    {laborRate.toFixed(1)}%
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm font-medium text-center">
+                                                <button onClick={() => handleEdit(product)} className="text-blue-600 hover:text-blue-900 mr-3"><i className="fa-solid fa-pen"></i></button>
+                                                <button onClick={() => onDelete(product.id)} className="text-red-600 hover:text-red-900"><i className="fa-solid fa-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {isModalOpen && (
+                        <ProductModal
+                            productClass={productClass}
+                            initialData={editingProduct}
+                            data={data}
+                            onClose={() => setIsModalOpen(false)}
+                            onSave={(p) => { onSave(p); setIsModalOpen(false); }}
+                            calculatePrice={calculatePrice}
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        // --- 製品編集モーダル ---
+        const ProductModal = ({ productClass, initialData, data, onClose, onSave, calculatePrice }) => {
+            const defaultProduct = {
+                id: generateId(),
+                class: productClass,
+                name: '',
+                categoryId: '',
+                materials: [
+                    { productId: '', quantity: 1 },
+                    { productId: '', quantity: 1 },
+                    { productId: '', quantity: 1 },
+                    { productId: '', quantity: 1 }
+                ],
+                qualityImpact: { skill: 100, mat1: 0, mat2: 0, mat3: 0, mat4: 0 },
+                manDays: 1,
+                basePrice: 0
+            };
+
+            // 過去の保存データ（材料が3つまで等）との互換性を保つためのマージ処理
+            const mergedInitialData = initialData ? {
+                ...initialData,
+                materials: [
+                    initialData.materials[0] || { productId: '', quantity: 1 },
+                    initialData.materials[1] || { productId: '', quantity: 1 },
+                    initialData.materials[2] || { productId: '', quantity: 1 },
+                    initialData.materials[3] || { productId: '', quantity: 1 }
+                ],
+                qualityImpact: {
+                    skill: initialData.qualityImpact?.skill ?? 100,
+                    mat1: initialData.qualityImpact?.mat1 ?? 0,
+                    mat2: initialData.qualityImpact?.mat2 ?? 0,
+                    mat3: initialData.qualityImpact?.mat3 ?? 0,
+                    mat4: initialData.qualityImpact?.mat4 ?? 0,
+                }
+            } : null;
+
+            const [formData, setFormData] = useState(mergedInitialData || defaultProduct);
+            const isRaw = productClass === 'raw';
+
+            // 入力ハンドラ
+            const handleChange = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
+            const handleQualityChange = (field, value) => {
+                const num = Number(value) || 0;
+                setFormData(prev => ({
+                    ...prev,
+                    qualityImpact: { ...prev.qualityImpact, [field]: num }
+                }));
+            };
+            const handleMaterialChange = (index, field, value) => {
+                setFormData(prev => {
+                    const newMaterials = [...prev.materials];
+                    newMaterials[index] = { ...newMaterials[index], [field]: value };
+                    return { ...prev, materials: newMaterials };
+                });
+            };
+
+            // 品質影響度の合計
+            const qualityTotal = (formData.qualityImpact.skill || 0) + 
+                                 (formData.qualityImpact.mat1 || 0) + 
+                                 (formData.qualityImpact.mat2 || 0) + 
+                                 (formData.qualityImpact.mat3 || 0) + 
+                                 (formData.qualityImpact.mat4 || 0);
+            const isQualityValid = qualityTotal === 100;
+
+            // 材料の選択肢（自分自身を除く）
+            const availableMaterials = data.products.filter(p => p.id !== formData.id);
+
+            // プレビュー用の計算
+            const previewPrice = isRaw ? Number(formData.basePrice) : calculatePrice(formData, data.products);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (!isQualityValid) {
+                    alert('品質影響度の合計が100%になっていません。');
+                    return;
+                }
+                onSave(formData);
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-gray-900">
+                                {initialData ? '製品の編集' : '製品の追加'} - {PRODUCT_CLASSES[productClass]}
+                            </h3>
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                                <i className="fa-solid fa-times text-xl"></i>
+                            </button>
+                        </div>
+
+                        <div className="px-6 py-4 overflow-y-auto flex-1">
+                            <form id="product-form" onSubmit={handleSubmit} className="space-y-6">
+                                {/* 基本情報 */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2 sm:col-span-1">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">製品名 <span className="text-red-500">*</span></label>
+                                        <input required type="text" className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                            value={formData.name} onChange={e => handleChange('name', e.target.value)} />
+                                    </div>
+                                    <div className="col-span-2 sm:col-span-1">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">カテゴリ</label>
+                                        <select className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                            value={formData.categoryId} onChange={e => handleChange('categoryId', e.target.value)}>
+                                            <option value="">未分類</option>
+                                            {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="col-span-2 sm:col-span-1">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">工数 (人日) <span className="text-red-500">*</span></label>
+                                        <input required type="number" step="any" min="0" className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                            value={formData.manDays} onChange={e => handleChange('manDays', Number(e.target.value))} />
+                                    </div>
+                                    {isRaw && (
+                                        <div className="col-span-2 sm:col-span-1">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">売値 (原材料ベース価格) <span className="text-red-500">*</span></label>
+                                            <input required type="number" min="0" className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                                                value={formData.basePrice} onChange={e => handleChange('basePrice', Number(e.target.value))} />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 材料設定 (原材料以外) */}
+                                {!isRaw && (
+                                    <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+                                        <h4 className="text-sm font-bold text-gray-700 mb-3"><i className="fa-solid fa-cubes mr-2"></i>材料設定 (最大4つ)</h4>
+                                        <div className="space-y-3">
+                                            {[0, 1, 2, 3].map(i => (
+                                                <div key={i} className="flex gap-2 items-center">
+                                                    <span className="text-xs font-medium text-gray-500 w-12">材料 {i + 1}</span>
+                                                    <select className="flex-1 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                                        value={formData.materials[i].productId} onChange={e => handleMaterialChange(i, 'productId', e.target.value)}>
+                                                        <option value="">-- 指定なし --</option>
+                                                        {availableMaterials.map(p => <option key={p.id} value={p.id}>[{PRODUCT_CLASSES[p.class]}] {p.name}</option>)}
+                                                    </select>
+                                                    <input type="number" min="0" step="any" placeholder="数量" disabled={!formData.materials[i].productId}
+                                                        className="w-24 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                                                        value={formData.materials[i].quantity} onChange={e => handleMaterialChange(i, 'quantity', Number(e.target.value))} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-2">※売値は「設定された材料の売値の合計 × 2」で自動計算されます。</p>
+                                    </div>
+                                )}
+
+                                {/* 品質影響度設定 */}
+                                <div className="bg-blue-50 p-4 rounded-md border border-blue-100">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h4 className="text-sm font-bold text-gray-700"><i className="fa-solid fa-star-half-stroke text-blue-500 mr-2"></i>完成品の品質影響度</h4>
+                                        <span className={`text-sm font-bold ${isQualityValid ? 'text-green-600' : 'text-red-600'}`}>
+                                            合計: {qualityTotal}% {isQualityValid ? <i className="fa-solid fa-check ml-1"></i> : <i className="fa-solid fa-triangle-exclamation ml-1"></i>}
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">生産者の技術 (%)</label>
+                                            <input type="number" min="0" max="100" className={`w-full border rounded-md px-2 py-1 text-sm ${!isQualityValid ? 'border-red-300' : 'border-gray-300'}`}
+                                                value={formData.qualityImpact.skill} onChange={e => handleQualityChange('skill', e.target.value)} />
+                                        </div>
+                                        {[1, 2, 3, 4].map(i => {
+                                            const matKey = `mat${i}`;
+                                            const hasMat = isRaw ? false : !!(formData.materials[i-1] && formData.materials[i-1].productId);
+                                            return (
+                                                <div key={matKey}>
+                                                    <label className="block text-xs text-gray-600 mb-1">材料{i}の品質 (%)</label>
+                                                    <input type="number" min="0" max="100" disabled={!hasMat && !isRaw}
+                                                        className={`w-full border rounded-md px-2 py-1 text-sm disabled:bg-gray-100 ${!isQualityValid ? 'border-red-300' : 'border-gray-300'}`}
+                                                        value={formData.qualityImpact[matKey]} onChange={e => handleQualityChange(matKey, e.target.value)} />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">※合計が必ず100%になるように設定してください。材料が設定されていない枠の影響度は0にしてください。</p>
+                                </div>
+
+                            </form>
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center rounded-b-lg">
+                            <div className="text-sm">
+                                <span className="text-gray-500">計算後売値:</span> <span className="font-bold text-lg text-gray-900 mr-4">¥{previewPrice.toLocaleString()}</span>
+                            </div>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">キャンセル</button>
+                                <button type="submit" form="product-form" disabled={!isQualityValid}
+                                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed">
+                                    保存する
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

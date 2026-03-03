@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WBS & ガントチャート</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* カスタムスクロールバーとコンテナ設定 */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #f3f4f6;
+        }
+        .table-container {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+            background-color: white;
+            scroll-behavior: smooth;
+            border-top: 1px solid #e5e7eb;
+        }
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: max-content;
+        }
+        th, td {
+            border-right: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 4px 8px;
+            white-space: nowrap;
+        }
+        
+        /* ==============================
+           Z-INDEX & STICKY SETTINGS
+           スクロール時の被りを防ぐための厳格な4層構造
+           ============================== */
+        thead th.sticky-col { position: sticky; z-index: 50 !important; background-color: #f8fafc !important; border-bottom: 2px solid #cbd5e1; }
+        thead th { position: sticky; z-index: 40; border-bottom: 2px solid #cbd5e1; }
+        tbody td.sticky-col { position: sticky; z-index: 30 !important; }
+        tbody td.gantt-cell { position: relative; z-index: 10; }
+
+        /* ==============================
+           HEIGHT & TOP SETTINGS
+           ============================== */
+        #gantt-header th.sticky-col { height: 104px !important; vertical-align: top; top: 0; }
+        #gantt-header tr:nth-child(1) th:not(.sticky-col) { height: 36px !important; top: 0; }
+        #gantt-header tr:nth-child(2) th { height: 68px !important; top: 36px !important; }
+        #wbs-body td { height: 44px; box-sizing: border-box; vertical-align: middle; }
+        
+        /* ==============================
+           列の幅・位置定義
+           ============================== */
+        .col-ctrl { left: 0px; min-width: 80px; }
+        .col-name { left: 80px; min-width: 320px; }
+        .col-status { left: 400px; min-width: 110px; }
+        .col-assign { left: 510px; min-width: 100px; }
+        .col-start { left: 610px; min-width: 130px; }
+        .col-end { left: 740px; min-width: 130px; }
+        .col-days { left: 870px; min-width: 60px; text-align: right; }
+        .col-excl { left: 930px; min-width: 80px; text-align: center; }
+        .col-deliverable { left: 1010px; min-width: 150px; }
+        .col-note { left: 1160px; min-width: 200px; border-right: 2px solid #94a3b8 !important; }
+
+        /* 行レベルごとの背景色 */
+        tr.level-0 > td.sticky-col { background-color: #f1f5f9; font-weight: bold; border-top: 1px solid #cbd5e1; }
+        tr.level-1 > td.sticky-col { background-color: #f8fafc; font-weight: 600; }
+        tr.level-2 > td.sticky-col { background-color: #ffffff; font-weight: 500; }
+        tr.level-3 > td.sticky-col { background-color: #ffffff; }
+
+        /* ガントチャート部分の基本背景色（透過して表示） */
+        tr.level-0 > td.gantt-cell { background-color: #f1f5f980; border-top: 1px solid #cbd5e1; }
+        tr.level-1 > td.gantt-cell { background-color: #f8fafc80; }
+        tr.level-2 > td.gantt-cell { background-color: #ffffff80; }
+        
+        /* 今日のハイライト */
+        td.today-col { background-color: #fffbeb !important; border-left: 2px solid #fde047; border-right: 2px solid #fde047; }
+        th.today-header { background-color: #fef3c7 !important; border-bottom: 2px solid #eab308 !important; }
+
+        /* ホバーと選択 */
+        tr:hover > td.sticky-col, tr:hover > td.gantt-cell { background-color: #fef9c3 !important; }
+        tr.selected > td.sticky-col, tr.selected > td.gantt-cell { background-color: #fef08a !important; transition: background-color 0.1s; }
+
+        /* ドラッグ＆ドロップ */
+        tr.dragging { opacity: 0.5; }
+        tr.drag-over { border-top: 2px solid #3b82f6; }
+
+        /* ガントチャートのバー（モダンデザイン） */
+        .gantt-cell { padding: 0 !important; vertical-align: middle; }
+        .bar { position: relative; border-radius: 9999px; margin: 2px 0; box-shadow: 0 1px 2px rgba(0,0,0,0.15); transition: width 0.2s; }
+        .bar-task { height: 18px; background: linear-gradient(to bottom, #60a5fa, #3b82f6); border: 1px solid #2563eb; } 
+        .bar-cat { height: 6px; background: #10b981; margin-top: 14px; margin-bottom: 14px; border-radius: 3px; box-shadow: none; } /* 区分は細いバー */
+        .bar-completed { height: 18px; background: linear-gradient(to bottom, #9ca3af, #6b7280); border: 1px solid #4b5563; }
+        
+        /* 入力欄のシームレス化 */
+        .seamless-input {
+            width: 100%; background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 2px 4px; outline: none; transition: all 0.2s;
+        }
+        .seamless-input:hover:not(:disabled) { border-color: #cbd5e1; background-color: rgba(255,255,255,0.5); }
+        .seamless-input:focus:not(:disabled) { border-color: #3b82f6; background-color: #ffffff; box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
+        
+        /* ステータスバッジセレクト */
+        .status-badge {
+            font-weight: 600; font-size: 0.75rem; padding: 2px 6px; border-radius: 9999px; border: 1px solid transparent;
+            appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat; background-position: right 0.25rem center; background-size: 1em; padding-right: 1.5rem;
+        }
+        .status-unstarted { background-color: #f3f4f6; color: #4b5563; border-color: #d1d5db; }
+        .status-inprogress { background-color: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+        .status-completed { background-color: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+        .status-cat { background: transparent; font-size: 0.875rem; color: #64748b; appearance: auto; background-image: none; padding-right: 0;}
+
+        input:disabled, select:disabled { background-color: transparent; color: #94a3b8; cursor: not-allowed; }
+    </style>
+</head>
+<body class="bg-gray-100 text-sm app-container text-gray-800" onclick="handleBodyClick(event)">
+
+    <!-- ヘッダーコントロール -->
+    <div class="p-3 bg-white shadow-sm flex flex-col shrink-0 z-40 gap-3 border-b border-gray-200">
+        <!-- 上段：タイトルと基本設定 -->
+        <div class="flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-project-diagram text-blue-600 text-xl"></i>
+                <input type="text" id="project-title" onchange="updateTitle(this.value)" class="text-xl font-bold text-slate-800 seamless-input w-64 placeholder-gray-300" placeholder="プロジェクト名を入力">
+            </div>
+            <div class="flex items-center space-x-3 flex-wrap">
+                <button onclick="scrollToToday()" class="text-sm bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-full hover:bg-blue-100 transition shadow-sm font-medium">
+                    <i class="fas fa-bullseye mr-1"></i>今日へ
+                </button>
+                <div class="flex items-center bg-gray-50 border rounded-md p-1">
+                    <label class="mx-2 text-xs font-semibold text-gray-500">表示開始:</label>
+                    <input type="date" id="gantt-start-date" class="bg-transparent border-none text-sm outline-none cursor-pointer" onchange="changeGanttSetting()">
+                    <div class="h-4 w-px bg-gray-300 mx-2"></div>
+                    <label class="mr-2 text-xs font-semibold text-gray-500">期間:</label>
+                    <select id="gantt-days" class="bg-transparent border-none text-sm outline-none cursor-pointer" onchange="changeGanttSetting()">
+                        <option value="30">30日</option>
+                        <option value="60">60日</option>
+                        <option value="90">90日</option>
+                        <option value="120">120日</option>
+                    </select>
+                </div>
+                <div class="h-6 w-px bg-gray-300 hidden md:block"></div>
+                <button onclick="openHolidayModal()" class="text-gray-600 hover:text-orange-500 transition px-2 py-1"><i class="fas fa-calendar-times mr-1"></i>休日設定</button>
+                <button onclick="openBulkModal()" class="text-gray-600 hover:text-blue-500 transition px-2 py-1"><i class="fas fa-tools mr-1"></i>一括操作</button>
+                <div class="flex space-x-1">
+                    <button onclick="exportJSON()" class="bg-slate-700 text-white px-3 py-1.5 rounded-md hover:bg-slate-800 transition shadow-sm text-xs"><i class="fas fa-download mr-1"></i>保存</button>
+                    <label class="bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700 transition shadow-sm text-xs cursor-pointer">
+                        <i class="fas fa-upload mr-1"></i>読込
+                        <input type="file" id="import-file" class="hidden" accept=".json" onchange="importJSON(event)">
+                    </label>
+                </div>
+            </div>
+        </div>
+        <!-- 下段：行追加とフィルタ -->
+        <div class="flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center">
+                <div class="inline-flex rounded-md shadow-sm" role="group">
+                    <button onclick="addTask(0)" class="px-3 py-1 text-sm font-medium text-white bg-indigo-600 border border-indigo-600 rounded-l-lg hover:bg-indigo-700 focus:z-10 focus:ring-2 focus:ring-indigo-500"><i class="fas fa-layer-group mr-1"></i>大</button>
+                    <button onclick="addTask(1)" class="px-3 py-1 text-sm font-medium text-white bg-indigo-500 border-t border-b border-indigo-500 hover:bg-indigo-600 focus:z-10 focus:ring-2 focus:ring-indigo-400">中</button>
+                    <button onclick="addTask(2)" class="px-3 py-1 text-sm font-medium text-white bg-indigo-400 border-t border-b border-indigo-400 hover:bg-indigo-500 focus:z-10 focus:ring-2 focus:ring-indigo-300">小</button>
+                    <button onclick="addTask(3)" class="px-3 py-1 text-sm font-medium text-white bg-blue-500 border border-blue-500 rounded-r-lg hover:bg-blue-600 focus:z-10 focus:ring-2 focus:ring-blue-400"><i class="fas fa-tasks mr-1"></i>タスク追加</button>
+                </div>
+                <span class="text-xs text-gray-400 ml-3 hidden lg:block"><i class="fas fa-info-circle mr-1"></i>行を選択して追加すると直下に挿入されます</span>
+            </div>
+            <div class="flex items-center bg-gray-50 border rounded-full px-3 py-1">
+                <i class="fas fa-filter text-gray-400 mr-2 text-xs"></i>
+                <label class="mr-2 text-xs font-semibold text-gray-600">対象日フィルタ:</label>
+                <input type="date" id="filter-date" class="bg-transparent border-none text-xs outline-none" onchange="updateFilter('date', this.value)">
+                <button onclick="clearDateFilter()" class="ml-2 text-gray-400 hover:text-red-500 transition text-xs"><i class="fas fa-times-circle"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- メインテーブルエリア -->
+    <div class="table-container" id="table-scroll-area">
+        <table id="wbs-table">
+            <thead id="gantt-header">
+                <!-- JSで動的に生成 -->
+            </thead>
+            <tbody id="wbs-body">
+                <!-- JSで動的に生成 -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 休日設定モーダル -->
+    <div id="holiday-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-96 transform transition-all">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-800"><i class="fas fa-calendar-alt text-orange-500 mr-2"></i>休日設定</h2>
+                <button onclick="closeHolidayModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 mb-1">対象日付</label>
+                <input type="date" id="holiday-date" class="w-full border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-2 border">
+            </div>
+            <div class="mb-6 flex items-center bg-gray-50 p-3 rounded-md">
+                <input type="checkbox" id="is-holiday" class="w-5 h-5 text-orange-600 rounded border-gray-300 focus:ring-orange-500 mr-3">
+                <label for="is-holiday" class="text-sm text-gray-700 font-medium cursor-pointer">休日に設定する（非稼働日）</label>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeHolidayModal()" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">キャンセル</button>
+                <button onclick="saveHoliday()" class="px-4 py-2 bg-orange-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-orange-700">保存する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 一括操作モーダル -->
+    <div id="bulk-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-[400px] transform transition-all">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-800"><i class="fas fa-tools text-blue-500 mr-2"></i>一括操作</h2>
+                <button onclick="closeBulkModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="mb-5 p-4 bg-gray-50 rounded-md border border-gray-200">
+                <h3 class="font-semibold text-gray-700 mb-1">日付の一括シフト</h3>
+                <p class="text-xs text-gray-500 mb-3">すべてのタスクの開始日と終了日を、指定した日数分ずらします。（マイナスも可）</p>
+                <div class="flex items-center space-x-2">
+                    <input type="number" id="shift-days" value="10" class="w-20 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 p-1.5 border text-right text-sm">
+                    <span class="text-sm text-gray-600">日</span>
+                    <button onclick="shiftAllDates()" class="px-4 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition ml-auto font-medium">実行</button>
+                </div>
+            </div>
+
+            <div class="mb-2 p-4 bg-gray-50 rounded-md border border-gray-200">
+                <h3 class="font-semibold text-gray-700 mb-1">ステータスのリセット</h3>
+                <p class="text-xs text-gray-500 mb-3">すべてのタスクのステータスを「未着手」に戻します。過去のWBSを再利用する際に便利です。</p>
+                <button onclick="resetAllStatuses()" class="w-full px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-md text-sm hover:bg-red-100 transition font-medium">すべて「未着手」にする</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 進行中タスクモーダル -->
+    <div id="task-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-1/2 max-w-2xl max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-800" id="task-modal-title">YYYY-MM-DD の進行中タスク</h2>
+                <button onclick="closeTaskModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="overflow-auto flex-1 border rounded-md bg-gray-50 p-1">
+                <ul id="task-modal-list" class="space-y-1">
+                    <!-- JSで動的に生成 -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'wbs_app_state';
+
+        // --- 状態管理 (State) ---
+        let state = {
+            title: '新規プロジェクト',
+            tasks: [
+                { id: generateId(), level: 0, name: 'プロジェクトA', status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' },
+                { id: generateId(), level: 1, name: '要件定義', status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' },
+                { id: generateId(), level: 3, name: 'キックオフMTG', status: '完了', assignee: '山田', start: getToday(), end: getToday(), exclude: false, collapsed: false, deliverable: '議事録', note: '' },
+                { id: generateId(), level: 3, name: '要件ヒアリング', status: '着手中', assignee: '佐藤', start: getToday(), end: addDays(getToday(), 3), exclude: false, collapsed: false, deliverable: '要件定義書', note: '客先訪問あり' },
+                { id: generateId(), level: 1, name: '設計', status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' },
+                { id: generateId(), level: 2, name: '基本設計', status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' },
+                { id: generateId(), level: 3, name: '画面設計', status: '未着手', assignee: '鈴木', start: addDays(getToday(), 4), end: addDays(getToday(), 8), exclude: false, collapsed: false, deliverable: 'ワイヤーフレーム', note: '' }
+            ],
+            ganttStartDate: getToday(),
+            ganttDaysToShow: 60,
+            customHolidays: {},
+            selectedIndex: -1,
+            filters: { name: '', status: '', assignee: '', deliverable: '', deliverableNotEmpty: false, exclude: '', date: '' }
+        };
+
+        // --- ユーティリティ関数 ---
+        function generateId() { return Math.random().toString(36).substr(2, 9); }
+        function getToday() { return new Date().toISOString().split('T')[0]; }
+        function addDays(dateStr, days) {
+            if (!dateStr) return '';
+            let d = new Date(dateStr);
+            d.setDate(d.getDate() + days);
+            return d.toISOString().split('T')[0];
+        }
+        function getDayOfWeek(dateStr) {
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            return days[new Date(dateStr).getDay()];
+        }
+        function isHoliday(dateStr) {
+            if (state.customHolidays[dateStr] !== undefined) return state.customHolidays[dateStr];
+            let day = new Date(dateStr).getDay();
+            return day === 0 || day === 6;
+        }
+        function calculateDuration(start, end) {
+            if (!start || !end || start > end) return 0;
+            let count = 0; let curr = start;
+            while (curr <= end) { if (!isHoliday(curr)) count++; curr = addDays(curr, 1); }
+            return count;
+        }
+
+        // --- 計算処理 ---
+        function updateComputedValues() {
+            state.tasks.forEach(t => {
+                if (t.level < 3) { t.start = ''; t.end = ''; t.status = '未着手'; t.days = 0; t._stats = { total: 0, unstarted: 0, completed: 0, exclude: 0 }; }
+            });
+
+            for (let i = state.tasks.length - 1; i >= 0; i--) {
+                let task = state.tasks[i];
+                if (task.level === 3) task.days = calculateDuration(task.start, task.end);
+                
+                let parentIdx = -1;
+                for (let j = i - 1; j >= 0; j--) {
+                    if (state.tasks[j].level < task.level) { parentIdx = j; break; }
+                }
+
+                if (parentIdx !== -1) {
+                    let parent = state.tasks[parentIdx];
+                    if (!task.exclude) {
+                        parent._stats.total++;
+                        if (task.status === '未着手') parent._stats.unstarted++;
+                        else if (task.status === '完了') parent._stats.completed++;
+                        if (task.start && (!parent.start || task.start < parent.start)) parent.start = task.start;
+                        if (task.end && (!parent.end || task.end > parent.end)) parent.end = task.end;
+                    }
+                }
+            }
+
+            state.tasks.forEach(t => {
+                if (t.level < 3) {
+                    t.days = calculateDuration(t.start, t.end);
+                    if (t._stats.total === 0) t.status = '未着手';
+                    else if (t._stats.unstarted === t._stats.total) t.status = '未着手';
+                    else if (t._stats.completed === t._stats.total) t.status = '完了';
+                    else t.status = '着手中';
+                }
+            });
+        }
+
+        // --- 描画処理 (Render) ---
+        function render() {
+            updateComputedValues();
+            document.getElementById('gantt-start-date').value = state.ganttStartDate;
+            document.getElementById('gantt-days').value = state.ganttDaysToShow || 60;
+            document.getElementById('filter-date').value = state.filters.date || '';
+            document.getElementById('project-title').value = state.title || '';
+            
+            renderHeader();
+            renderBody();
+            saveToLocalStorage();
+        }
+
+        function renderHeader() {
+            const thead = document.getElementById('gantt-header');
+            const todayStr = getToday();
+            
+            let tr1 = `<tr class="text-slate-700 bg-slate-50">
+                <th rowspan="2" class="sticky-col col-ctrl pt-2 border-r border-slate-200">操作</th>
+                <th rowspan="2" class="sticky-col col-name pt-2 border-r border-slate-200">
+                    <div class="mb-1 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">名称</div>
+                    <input type="text" value="${state.filters.name}" onchange="updateFilter('name', this.value)" class="seamless-input bg-white text-xs border-gray-200" placeholder="名前で絞り込み...">
+                </th>
+                <th rowspan="2" class="sticky-col col-status pt-2 border-r border-slate-200">
+                    <div class="mb-1 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">状態</div>
+                    <select onchange="updateFilter('status', this.value)" class="seamless-input bg-white text-xs border-gray-200">
+                        <option value="" ${state.filters.status === '' ? 'selected' : ''}>全て</option>
+                        <option value="未着手" ${state.filters.status === '未着手' ? 'selected' : ''}>未着手</option>
+                        <option value="着手中" ${state.filters.status === '着手中' ? 'selected' : ''}>着手中</option>
+                        <option value="完了" ${state.filters.status === '完了' ? 'selected' : ''}>完了</option>
+                        <option value="not-completed" ${state.filters.status === 'not-completed' ? 'selected' : ''}>完了以外</option>
+                    </select>
+                </th>
+                <th rowspan="2" class="sticky-col col-assign pt-2 border-r border-slate-200">
+                    <div class="mb-1 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">担当</div>
+                    <input type="text" value="${state.filters.assignee}" onchange="updateFilter('assignee', this.value)" class="seamless-input bg-white text-xs border-gray-200" placeholder="担当者...">
+                </th>
+                <th rowspan="2" class="sticky-col col-start pt-2 border-r border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">開始日</th>
+                <th rowspan="2" class="sticky-col col-end pt-2 border-r border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">終了日</th>
+                <th rowspan="2" class="sticky-col col-days pt-2 border-r border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">日数</th>
+                <th rowspan="2" class="sticky-col col-excl pt-2 border-r border-slate-200">
+                    <div class="mb-1 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">対象外</div>
+                    <select onchange="updateFilter('exclude', this.value)" class="seamless-input bg-white text-xs border-gray-200 text-center">
+                        <option value="" ${state.filters.exclude === '' ? 'selected' : ''}>-</option>
+                        <option value="false" ${state.filters.exclude === 'false' ? 'selected' : ''}>対象</option>
+                        <option value="true" ${state.filters.exclude === 'true' ? 'selected' : ''}>外</option>
+                    </select>
+                </th>
+                <th rowspan="2" class="sticky-col col-deliverable pt-2 border-r border-slate-200">
+                    <div class="mb-1 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">成果物</div>
+                    <input type="text" value="${state.filters.deliverable}" onchange="updateFilter('deliverable', this.value)" class="seamless-input bg-white text-xs border-gray-200 mb-1" placeholder="絞り込み...">
+                    <label class="flex items-center text-[10px] text-slate-500 cursor-pointer">
+                        <input type="checkbox" ${state.filters.deliverableNotEmpty ? 'checked' : ''} onchange="updateFilter('deliverableNotEmpty', this.checked)" class="mr-1 rounded text-blue-500">
+                        空白以外
+                    </label>
+                </th>
+                <th rowspan="2" class="sticky-col col-note pt-2">
+                    <div class="mb-1 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">備考</div>
+                </th>`;
+            
+            let tr2 = `<tr class="text-slate-600">`;
+
+            let currDate = state.ganttStartDate;
+            let currentMonth = '';
+            let monthColspan = 0;
+            let monthsHtml = '';
+            let daysToShow = state.ganttDaysToShow || 60;
+
+            for (let i = 0; i < daysToShow; i++) {
+                let d = new Date(currDate);
+                let monthStr = `${d.getFullYear()}年${d.getMonth() + 1}月`;
+                let isToday = currDate === todayStr;
+                
+                let thClass = isToday ? "text-center border-b bg-yellow-50 text-yellow-800 font-bold border-yellow-300" : "text-center border-b bg-white";
+                
+                if (monthStr !== currentMonth) {
+                    if (currentMonth !== '') monthsHtml += `<th colspan="${monthColspan}" class="${thClass}">${currentMonth}</th>`;
+                    currentMonth = monthStr;
+                    monthColspan = 1;
+                } else {
+                    monthColspan++;
+                }
+
+                let activeCount = state.tasks.filter(t => t.level === 3 && !t.exclude && t.start && t.end && currDate >= t.start && currDate <= t.end).length;
+                let hol = isHoliday(currDate);
+                
+                let bg = isToday ? 'today-header' : (hol ? 'bg-red-50 text-red-500' : 'bg-white');
+                let badge = activeCount > 0 ? `<span class="ml-1 cursor-pointer bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded-full hover:bg-blue-200 font-bold shadow-sm" onclick="openTaskModal('${currDate}')">${activeCount}</span>` : '';
+
+                tr2 += `<th class="text-center font-normal min-w-[32px] ${bg} border-r border-slate-200 ${isToday?'border-l border-yellow-400':''}">
+                    <div class="cursor-pointer hover:text-blue-600 transition" onclick="openHolidayModal('${currDate}')">${d.getDate()}</div>
+                    <div class="text-[10px] ${isToday?'text-yellow-600 font-bold':'text-slate-400'}">${getDayOfWeek(currDate)}</div>
+                    <div class="h-4 flex items-center justify-center mt-0.5">${badge}</div>
+                </th>`;
+
+                currDate = addDays(currDate, 1);
+            }
+            monthsHtml += `<th colspan="${monthColspan}" class="text-center border-b bg-white">${currentMonth}</th>`;
+            tr1 += monthsHtml + `</tr>`;
+
+            thead.innerHTML = tr1 + tr2;
+        }
+
+        // ステータスに応じたクラスを返すヘルパー
+        function getStatusClass(status, isCat) {
+            if (isCat) return "status-cat";
+            if (status === '完了') return "status-badge status-completed";
+            if (status === '着手中') return "status-badge status-inprogress";
+            return "status-badge status-unstarted";
+        }
+
+        function renderBody() {
+            const tbody = document.getElementById('wbs-body');
+            tbody.innerHTML = '';
+            const todayStr = getToday();
+            let daysToShow = state.ganttDaysToShow || 60;
+
+            // フィルタ処理
+            let f = state.filters || {};
+            let hasFilter = f.name || f.status || f.assignee || f.deliverable || f.deliverableNotEmpty || f.exclude || f.date;
+            let matchMap = new Array(state.tasks.length).fill(true);
+
+            if (hasFilter) {
+                state.tasks.forEach((t, i) => {
+                    let mName = !f.name || t.name.toLowerCase().includes(f.name.toLowerCase());
+                    let mStatus = !f.status ? true : (f.status === 'not-completed' ? t.status !== '完了' : t.status === f.status);
+                    let mAssignee = !f.assignee || (t.assignee || '').toLowerCase().includes(f.assignee.toLowerCase());
+                    let mDeliv = true;
+                    if (f.deliverableNotEmpty) mDeliv = (t.deliverable || '').trim() !== '';
+                    if (f.deliverable) mDeliv = mDeliv && (t.deliverable || '').toLowerCase().includes(f.deliverable.toLowerCase());
+                    let mExcl = f.exclude === '' ? true : (f.exclude === 'true' ? t.exclude === true : t.exclude === false);
+                    let mDate = !f.date ? true : (t.start && t.end && !t.exclude && f.date >= t.start && f.date <= t.end);
+
+                    matchMap[i] = mName && mStatus && mAssignee && mDeliv && mExcl && mDate;
+                });
+                for (let i = state.tasks.length - 1; i >= 0; i--) {
+                    if (matchMap[i]) {
+                        let cl = state.tasks[i].level;
+                        for (let j = i - 1; j >= 0; j--) {
+                            if (state.tasks[j].level < cl) { matchMap[j] = true; cl = state.tasks[j].level; }
+                        }
+                    }
+                }
+            }
+
+            let hiddenLevel = 999;
+
+            state.tasks.forEach((task, index) => {
+                if (hasFilter && !matchMap[index]) return;
+                if (!hasFilter) {
+                    if (task.level <= hiddenLevel) hiddenLevel = 999;
+                    if (hiddenLevel !== 999) return; 
+                    if (task.collapsed && task.level < 3) hiddenLevel = task.level;
+                }
+
+                let isCat = task.level < 3;
+                let disabledAttr = isCat ? 'disabled' : '';
+                let indent = task.level * 1.5;
+                let isSel = state.selectedIndex === index ? 'selected' : '';
+
+                const levelNames = ['大', '中', '小', 'T'];
+                const levelColors = ['bg-slate-200 text-slate-700', 'bg-slate-100 text-slate-600', 'bg-gray-100 text-gray-500', 'bg-white text-gray-400 border border-gray-200'];
+                const levelBadge = `<span class="inline-block w-5 h-5 leading-5 text-center text-[10px] font-bold rounded mr-1.5 ${levelColors[task.level]} shadow-sm">${levelNames[task.level]}</span>`;
+                
+                const toggleIcon = isCat ? 
+                    `<button onclick="toggleCollapse(${index}, event)" class="mr-1 w-5 h-5 flex items-center justify-center rounded hover:bg-slate-200 text-slate-500 transition"><i class="fas ${task.collapsed && !hasFilter ? 'fa-chevron-right text-xs' : 'fa-chevron-down text-xs'}"></i></button>` : 
+                    `<span class="inline-block w-5 mr-1"></span>`;
+
+                let tr = document.createElement('tr');
+                tr.className = `level-${task.level} ${isSel} cursor-pointer transition-colors border-b border-slate-100`;
+                tr.draggable = true;
+                tr.setAttribute('data-index', index);
+                tr.onclick = (e) => selectRow(index, e);
+                tr.addEventListener('dragstart', handleDragStart);
+                tr.addEventListener('dragover', handleDragOver);
+                tr.addEventListener('dragleave', handleDragLeave);
+                tr.addEventListener('drop', handleDrop);
+
+                let html = `
+                    <td class="sticky-col col-ctrl text-center">
+                        <i class="fas fa-grip-vertical text-slate-300 hover:text-slate-500 cursor-move mr-3 transition"></i>
+                        <button onclick="deleteTask(${index}, event)" class="text-red-300 hover:text-red-500 hover:bg-red-50 w-6 h-6 rounded transition"><i class="fas fa-trash text-xs"></i></button>
+                    </td>
+                    <td class="sticky-col col-name" style="padding-left: ${indent + 0.5}rem;">
+                        <div class="flex items-center">
+                            ${toggleIcon}
+                            ${levelBadge}
+                            <input type="text" value="${task.name}" onchange="updateTask(${index}, 'name', this.value)" title="${task.name}" class="seamless-input flex-1 min-w-0 font-medium ${isCat?'text-slate-800':'text-slate-700'}">
+                        </div>
+                    </td>
+                    <td class="sticky-col col-status text-center">
+                        <select onchange="updateTask(${index}, 'status', this.value)" class="seamless-input ${getStatusClass(task.status, isCat)}" ${disabledAttr}>
+                            <option value="未着手" ${task.status === '未着手' ? 'selected' : ''}>未着手</option>
+                            <option value="着手中" ${task.status === '着手中' ? 'selected' : ''}>着手中</option>
+                            <option value="完了" ${task.status === '完了' ? 'selected' : ''}>完了</option>
+                        </select>
+                    </td>
+                    <td class="sticky-col col-assign">
+                        <input type="text" value="${task.assignee}" onchange="updateTask(${index}, 'assignee', this.value)" class="seamless-input text-sm text-center" ${disabledAttr}>
+                    </td>
+                    <td class="sticky-col col-start">
+                        <input type="date" value="${task.start}" onchange="updateTask(${index}, 'start', this.value)" class="seamless-input text-xs text-slate-600" ${disabledAttr}>
+                    </td>
+                    <td class="sticky-col col-end">
+                        <input type="date" value="${task.end}" onchange="updateTask(${index}, 'end', this.value)" class="seamless-input text-xs text-slate-600" ${disabledAttr}>
+                    </td>
+                    <td class="sticky-col col-days text-slate-600 font-medium">${task.days}</td>
+                    <td class="sticky-col col-excl flex justify-center items-center h-[44px]">
+                        <input type="checkbox" ${task.exclude ? 'checked' : ''} onchange="updateTask(${index}, 'exclude', this.checked)" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer">
+                    </td>
+                    <td class="sticky-col col-deliverable">
+                        <input type="text" value="${task.deliverable || ''}" title="${task.deliverable || ''}" onchange="updateTask(${index}, 'deliverable', this.value)" class="seamless-input text-sm" ${isCat ? 'disabled' : ''}>
+                    </td>
+                    <td class="sticky-col col-note">
+                        <input type="text" value="${task.note || ''}" title="${task.note || ''}" onchange="updateTask(${index}, 'note', this.value)" class="seamless-input text-sm text-slate-600">
+                    </td>
+                `;
+
+                let currDate = state.ganttStartDate;
+                for (let d = 0; d < daysToShow; d++) {
+                    let isToday = currDate === todayStr;
+                    let hol = isHoliday(currDate);
+                    
+                    let cellClass = isToday ? 'today-col' : (hol ? 'bg-slate-50' : '');
+                    let inner = '';
+
+                    if (task.start && task.end && currDate >= task.start && currDate <= task.end && !task.exclude) {
+                        let barClass = isCat ? 'bar-cat' : (task.status === '完了' ? 'bar-completed' : 'bar-task');
+                        let roundedClass = '';
+                        if (currDate === task.start) roundedClass += ' rounded-l-full';
+                        if (currDate === task.end) roundedClass += ' rounded-r-full';
+                        
+                        // タスク名や担当者をツールチップで表示
+                        let titleText = `${task.name} (${task.start}〜${task.end})`;
+                        if(task.assignee) titleText += ` - ${task.assignee}`;
+                        
+                        inner = `<div class="bar w-full ${barClass} ${roundedClass}" title="${titleText}"></div>`;
+                    }
+
+                    html += `<td class="gantt-cell border-r border-slate-200 ${cellClass}">${inner}</td>`;
+                    currDate = addDays(currDate, 1);
+                }
+
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- データ操作 ---
+        function saveToLocalStorage() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+        function updateTitle(value) { state.title = value; saveToLocalStorage(); }
+        function updateTask(index, field, value) { state.tasks[index][field] = value; render(); }
+        function updateFilter(key, value) { state.filters[key] = value; renderBody(); saveToLocalStorage(); }
+        function clearDateFilter() { document.getElementById('filter-date').value = ''; updateFilter('date', ''); }
+        function toggleCollapse(index, event) { if (event) event.stopPropagation(); state.tasks[index].collapsed = !state.tasks[index].collapsed; renderBody(); saveToLocalStorage(); }
+        
+        function selectRow(index, event) {
+            if (event.target.closest('button') || event.target.closest('.cursor-move') || event.target.closest('input') || event.target.closest('select')) return;
+            state.selectedIndex = index;
+            const rows = document.getElementById('wbs-body').querySelectorAll('tr');
+            rows.forEach(row => {
+                if (parseInt(row.getAttribute('data-index')) === index) row.classList.add('selected');
+                else row.classList.remove('selected');
+            });
+        }
+
+        function handleBodyClick(event) {
+            if (event.target.closest('#wbs-body') || event.target.closest('.p-3')) return;
+            state.selectedIndex = -1;
+            document.getElementById('wbs-body').querySelectorAll('tr').forEach(row => row.classList.remove('selected'));
+        }
+
+        function addTask(level) {
+            const newTask = { id: generateId(), level: level, name: '新規' + ['大区分', '中区分', '小区分', 'タスク'][level], status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' };
+            let insertIndex = state.tasks.length; 
+            if (state.selectedIndex !== -1 && state.selectedIndex < state.tasks.length) {
+                let selLevel = state.tasks[state.selectedIndex].level;
+                if (level >= selLevel) { insertIndex = state.selectedIndex + 1; } 
+                else {
+                    insertIndex = state.selectedIndex + 1;
+                    while (insertIndex < state.tasks.length && state.tasks[insertIndex].level > level) insertIndex++;
+                }
+            }
+            state.tasks.splice(insertIndex, 0, newTask);
+            state.selectedIndex = insertIndex; 
+            for (let i = insertIndex - 1; i >= 0; i--) {
+                if (state.tasks[i].level < level) { state.tasks[i].collapsed = false; break; }
+            }
+            render();
+            setTimeout(() => {
+                const addedRow = Array.from(document.getElementById('wbs-body').children).find(row => parseInt(row.getAttribute('data-index')) === insertIndex);
+                if (addedRow) addedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 50);
+        }
+
+        function deleteTask(index, event) {
+            if (event) event.stopPropagation();
+            if (!confirm('この行を削除しますか？\n※区分行の場合は、下階層もすべて削除されます。')) return;
+            let level = state.tasks[index].level;
+            let deleteCount = 1;
+            for (let i = index + 1; i < state.tasks.length; i++) {
+                if (state.tasks[i].level <= level) break;
+                deleteCount++;
+            }
+            state.tasks.splice(index, deleteCount);
+            state.selectedIndex = -1; 
+            render();
+        }
+
+        function changeGanttSetting() {
+            let startVal = document.getElementById('gantt-start-date').value;
+            let daysVal = parseInt(document.getElementById('gantt-days').value);
+            if (startVal) state.ganttStartDate = startVal;
+            if (daysVal) state.ganttDaysToShow = daysVal;
+            render();
+        }
+
+        // 今日へジャンプ機能
+        function scrollToToday() {
+            const today = getToday();
+            const start = state.ganttStartDate;
+            const diff = Math.floor((new Date(today) - new Date(start)) / (1000 * 60 * 60 * 24));
+            
+            // 今日が表示期間外の場合は、開始日を今日-2日に調整する
+            if (diff < 0 || diff >= (state.ganttDaysToShow || 60)) {
+                state.ganttStartDate = addDays(today, -2);
+                render();
+            }
+
+            // スクロール位置の計算と実行
+            setTimeout(() => {
+                const tableContainer = document.getElementById('table-scroll-area');
+                const newDiff = Math.floor((new Date(today) - new Date(state.ganttStartDate)) / (1000 * 60 * 60 * 24));
+                // 1日あたりのセル幅(約32px) × 日数。少し左に余白を持たせる
+                const scrollLeftPos = Math.max(0, newDiff * 32 - 100); 
+                tableContainer.scrollTo({ left: scrollLeftPos, behavior: 'smooth' });
+            }, 50);
+        }
+
+        // --- ドラッグ＆ドロップ ---
+        let dragStartIndex = -1;
+        function handleDragStart(e) { dragStartIndex = parseInt(this.getAttribute('data-index')); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragStartIndex); setTimeout(() => this.classList.add('dragging'), 0); }
+        function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; document.querySelectorAll('tr.drag-over').forEach(tr => tr.classList.remove('drag-over')); let tr = e.target.closest('tr'); if (tr && tr.parentNode.id === 'wbs-body') tr.classList.add('drag-over'); }
+        function handleDragLeave(e) { let tr = e.target.closest('tr'); if (tr) tr.classList.remove('drag-over'); }
+        function handleDrop(e) {
+            e.stopPropagation();
+            document.querySelectorAll('tr').forEach(tr => { tr.classList.remove('dragging'); tr.classList.remove('drag-over'); });
+            let dropElement = e.target.closest('tr');
+            if (!dropElement || dropElement.parentNode.id !== 'wbs-body') return;
+            let dropIndex = parseInt(dropElement.getAttribute('data-index'));
+            if (dragStartIndex === dropIndex || dragStartIndex === -1) return;
+            let dragLevel = state.tasks[dragStartIndex].level;
+            let blockCount = 1;
+            for (let i = dragStartIndex + 1; i < state.tasks.length; i++) { if (state.tasks[i].level <= dragLevel) break; blockCount++; }
+            let draggedItems = state.tasks.splice(dragStartIndex, blockCount);
+            if (dragStartIndex < dropIndex) dropIndex -= blockCount;
+            state.tasks.splice(dropIndex, 0, ...draggedItems);
+            dragStartIndex = -1; state.selectedIndex = -1; 
+            render();
+        }
+
+        // --- モーダル ---
+        function openHolidayModal(dateStr = '') { document.getElementById('holiday-date').value = dateStr || getToday(); document.getElementById('is-holiday').checked = isHoliday(dateStr || getToday()); document.getElementById('holiday-modal').classList.remove('hidden'); }
+        function closeHolidayModal() { document.getElementById('holiday-modal').classList.add('hidden'); }
+        function saveHoliday() { const date = document.getElementById('holiday-date').value; const isHol = document.getElementById('is-holiday').checked; if (date) { state.customHolidays[date] = isHol; closeHolidayModal(); render(); } }
+        
+        function openBulkModal() { document.getElementById('bulk-modal').classList.remove('hidden'); }
+        function closeBulkModal() { document.getElementById('bulk-modal').classList.add('hidden'); }
+        
+        function shiftAllDates() {
+            const days = parseInt(document.getElementById('shift-days').value, 10);
+            if (isNaN(days) || days === 0) return;
+            if (!confirm(`すべてのタスクの日付を ${days > 0 ? '+' : ''}${days}日 ずらしますか？`)) return;
+
+            state.tasks.forEach(t => {
+                if (t.level === 3) {
+                    if (t.start) t.start = addDays(t.start, days);
+                    if (t.end) t.end = addDays(t.end, days);
+                }
+            });
+            // ガントチャートの表示位置も一緒にずらす
+            if (state.ganttStartDate) state.ganttStartDate = addDays(state.ganttStartDate, days);
+            
+            closeBulkModal();
+            render();
+        }
+
+        function resetAllStatuses() {
+            if (!confirm('すべてのタスクのステータスを「未着手」に戻しますか？\n（この操作は元に戻せません）')) return;
+            state.tasks.forEach(t => { if (t.level === 3) t.status = '未着手'; });
+            closeBulkModal();
+            render();
+        }
+
+        function openTaskModal(dateStr) {
+            const modal = document.getElementById('task-modal');
+            const list = document.getElementById('task-modal-list');
+            document.getElementById('task-modal-title').innerText = `${dateStr} の進行中タスク`;
+            let activeTasks = state.tasks.filter(t => t.level === 3 && !t.exclude && t.start && t.end && dateStr >= t.start && dateStr <= t.end);
+            list.innerHTML = activeTasks.map(t => `
+                <li class="p-3 border-b border-gray-100 flex justify-between items-center bg-white rounded shadow-sm mb-1">
+                    <div>
+                        <span class="font-bold text-gray-800">${t.name}</span>
+                        <span class="text-xs ml-3 text-gray-500"><i class="far fa-calendar-alt mr-1"></i>${t.start} 〜 ${t.end}</span>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <span class="${getStatusClass(t.status, false)} px-2 py-0.5">${t.status}</span>
+                        <span class="text-sm font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded"><i class="far fa-user mr-1 text-gray-400"></i>${t.assignee || '未アサイン'}</span>
+                    </div>
+                </li>
+            `).join('') || '<li class="p-4 text-gray-500 text-center bg-white rounded">進行中のタスクはありません</li>';
+            modal.classList.remove('hidden');
+        }
+        function closeTaskModal() { document.getElementById('task-modal').classList.add('hidden'); }
+
+        // --- JSON ---
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            const safeTitle = (state.title || "無題").replace(/[\\/:*?"<>|]/g, "_");
+            downloadAnchorNode.setAttribute("download", `${safeTitle}_WBS.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedState = JSON.parse(e.target.result);
+                    if (importedState.tasks && Array.isArray(importedState.tasks)) {
+                        if (importedState.title === undefined) importedState.title = 'WBS & ガントチャート';
+                        if (importedState.ganttDaysToShow === undefined) importedState.ganttDaysToShow = 60;
+                        if (!importedState.filters) importedState.filters = { name: '', status: '', assignee: '', deliverable: '', deliverableNotEmpty: false, exclude: '', date: '' };
+                        else {
+                            ['name','status','assignee','deliverable','exclude','date'].forEach(k => { if(importedState.filters[k]===undefined) importedState.filters[k]=''; });
+                            if(importedState.filters.deliverableNotEmpty===undefined) importedState.filters.deliverableNotEmpty=false;
+                        }
+                        importedState.tasks.forEach(t => { if (t.collapsed === undefined) t.collapsed = false; if (t.deliverable === undefined) t.deliverable = ''; if (t.note === undefined) t.note = ''; });
+                        state = importedState; state.selectedIndex = -1; render(); 
+                        alert('データを読み込みました。');
+                    } else alert('無効なファイルフォーマットです。');
+                } catch (err) { alert('ファイルの読み込みに失敗しました。'); }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // 初期化
+        window.onload = () => {
+            const savedState = localStorage.getItem(STORAGE_KEY);
+            if (savedState) {
+                try {
+                    const parsedState = JSON.parse(savedState);
+                    if (parsedState && parsedState.tasks) {
+                        if (parsedState.title === undefined) parsedState.title = 'WBS & ガントチャート';
+                        if (parsedState.ganttDaysToShow === undefined) parsedState.ganttDaysToShow = 60;
+                        if (!parsedState.filters) parsedState.filters = { name: '', status: '', assignee: '', deliverable: '', deliverableNotEmpty: false, exclude: '', date: '' };
+                        else {
+                            ['name','status','assignee','deliverable','exclude','date'].forEach(k => { if(parsedState.filters[k]===undefined) parsedState.filters[k]=''; });
+                            if(parsedState.filters.deliverableNotEmpty===undefined) parsedState.filters.deliverableNotEmpty=false;
+                        }
+                        parsedState.tasks.forEach(t => { if (t.collapsed === undefined) t.collapsed = false; if (t.deliverable === undefined) t.deliverable = ''; if (t.note === undefined) t.note = ''; });
+                        state = parsedState; state.selectedIndex = -1; 
+                    }
+                } catch (e) { console.error('ローカルストレージの読み込みに失敗', e); }
+            } else {
+                let starts = state.tasks.filter(t=>t.level===3 && t.start).map(t=>t.start).sort();
+                if (starts.length > 0) state.ganttStartDate = addDays(starts[0], -2);
+            }
+            render();
+            // 初期表示時に今日へスクロール
+            setTimeout(scrollToToday, 200);
+        };
+    </script>
+</body>
+</html>

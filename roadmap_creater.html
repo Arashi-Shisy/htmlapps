@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>クリティカルパス・ロードマップ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans JP', sans-serif; }
+        .canvas-container { cursor: default; }
+        
+        /* アニメーションとカーソル */
+        .task-node { cursor: grab; transition: opacity 0.2s ease, filter 0.2s ease; }
+        .task-node:active { cursor: grabbing; }
+        .edge-normal { stroke: #9ca3af; stroke-width: 2px; fill: none; transition: opacity 0.2s ease, stroke-width 0.2s ease; }
+        .edge-critical { stroke: #ef4444; stroke-width: 3.5px; fill: none; z-index: 10; transition: opacity 0.2s ease, stroke-width 0.2s ease; }
+        .canvas-bg { cursor: grab; }
+        .canvas-bg:active { cursor: grabbing; }
+        
+        /* スクロールバーのスタイル */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 h-screen flex overflow-hidden selection:bg-blue-200">
+
+    <!-- サイドバー -->
+    <aside class="w-80 bg-white border-r border-gray-200 shadow-sm flex flex-col z-20 flex-shrink-0">
+        <!-- ゴール設定 -->
+        <div class="p-5 border-b border-gray-100 bg-white sticky top-0">
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">プロジェクトのゴール</label>
+            <textarea id="goal-input" rows="2" class="w-full text-lg font-bold text-gray-800 border border-transparent hover:border-gray-200 focus:border-blue-500 outline-none focus:ring-2 focus:ring-blue-200 rounded-md p-2 transition-all resize-none bg-gray-50 focus:bg-white" placeholder="目標を入力..."></textarea>
+        </div>
+        
+        <div class="p-5 flex-1 overflow-y-auto">
+            <!-- プロジェクト情報 -->
+            <div class="bg-blue-50 border border-blue-100 p-4 rounded-lg mb-6 shadow-sm">
+                <p class="text-sm text-blue-800 font-medium">最短完了期間: <span class="text-2xl font-bold text-blue-600 ml-1" id="total-duration">0</span> 日</p>
+                
+                <!-- 進捗状況 -->
+                <div class="mt-3">
+                    <div class="flex justify-between items-center text-xs text-blue-800 mb-1">
+                        <span class="font-bold">タスク進捗</span>
+                        <span id="progress-text" class="font-mono">0 / 0 (0%)</span>
+                    </div>
+                    <div class="w-full bg-blue-200/50 rounded-full h-2 overflow-hidden">
+                        <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" id="progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <p class="mt-3 text-[10px] text-blue-600 leading-tight">
+                    <span class="inline-block w-2 h-2 bg-red-500 rounded-full mr-1"></span>
+                    赤色の経路は<strong class="font-bold">クリティカルパス</strong>です。このタスクが遅れると全体が遅延します。
+                </p>
+            </div>
+
+            <!-- アクションボタン -->
+            <button onclick="window.openTaskModal()" class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-2.5 px-4 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 mb-3">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                新しいタスクを追加
+            </button>
+            <button onclick="window.resetCompletions()" class="w-full bg-white border border-gray-300 hover:bg-gray-50 active:bg-gray-100 text-gray-700 font-bold py-2 px-4 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 mb-8 text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                進捗をリセット (再利用)
+            </button>
+
+            <!-- ラベル管理 -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-bold text-gray-700">ラベル</h3>
+                    <button onclick="window.openLabelModal()" class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded text-xs font-bold transition-colors">+ 追加</button>
+                </div>
+                <div id="labels-list" class="space-y-2">
+                    <!-- ラベルリストがここにJSで挿入されます -->
+                </div>
+            </div>
+
+            <!-- データ管理 -->
+            <div class="mt-6 border-t border-gray-100 pt-4">
+                <h3 class="text-sm font-bold text-gray-700 mb-3">データ保存・読み込み</h3>
+                <div class="flex gap-2">
+                    <button onclick="window.exportJSON()" class="flex-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold py-2 px-1 rounded shadow-sm transition-colors flex flex-col items-center justify-center gap-1" title="JSONファイルとして保存">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        保存
+                    </button>
+                    <button onclick="document.getElementById('import-file').click()" class="flex-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold py-2 px-1 rounded shadow-sm transition-colors flex flex-col items-center justify-center gap-1" title="JSONファイルを読み込む">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        読込
+                    </button>
+                    <button id="btn-export-image" onclick="window.exportImage()" class="flex-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold py-2 px-1 rounded shadow-sm transition-colors flex flex-col items-center justify-center gap-1" title="画像ファイルとして保存">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        画像出力
+                    </button>
+                    <input type="file" id="import-file" accept=".json" class="hidden" onchange="window.importJSON(event)">
+                </div>
+                <p class="text-[10px] text-gray-400 mt-2 text-center">※作業内容は自動的にブラウザにも保存されます</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- メインキャンバス -->
+    <main class="flex-1 overflow-auto relative bg-slate-100 canvas-container" id="canvas-container">
+        
+        <!-- SVG領域 -->
+        <svg id="canvas-svg" width="4000" height="3000" class="absolute top-0 left-0 bg-slate-100">
+            <defs>
+                <!-- 背景グリッド -->
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e5e7eb" stroke-width="1"/>
+                </pattern>
+                
+                <!-- 矢印マーカー -->
+                <marker id="arrow-normal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#9ca3af" />
+                </marker>
+                <marker id="arrow-critical" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#ef4444" />
+                </marker>
+            </defs>
+            
+            <!-- スケールとパニングの対象となるメイングループ -->
+            <g id="canvas-content" transform="scale(1)">
+                <!-- ドラッグ移動用の背景 -->
+                <rect width="4000" height="3000" fill="url(#grid)" class="canvas-bg" id="canvas-bg" />
+                
+                <!-- キャンバス中央マーカー -->
+                <g id="center-marker" transform="translate(2000, 1500)" opacity="0.5" class="select-none pointer-events-none">
+                    <circle cx="0" cy="0" r="40" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="4 4"/>
+                    <line x1="-60" y1="0" x2="60" y2="0" stroke="#cbd5e1" stroke-width="2" />
+                    <line x1="0" y1="-60" x2="0" y2="60" stroke="#cbd5e1" stroke-width="2" />
+                    <text x="0" y="-50" font-size="12" fill="#94a3b8" text-anchor="middle" font-weight="bold" letter-spacing="0.1em">CANVAS CENTER</text>
+                </g>
+
+                <!-- エッジとノードのレイヤー -->
+                <g id="edges-layer"></g>
+                <g id="nodes-layer"></g>
+            </g>
+        </svg>
+
+        <!-- ズーム・ナビゲーションコントロール -->
+        <div class="fixed bottom-6 right-6 z-30 flex flex-col shadow-lg rounded-lg bg-white p-1 border border-gray-200">
+            <button onclick="window.zoomIn()" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="拡大">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+            </button>
+            <div class="h-px bg-gray-100 w-full my-0.5"></div>
+            <div id="zoom-level" class="text-[10px] font-mono text-center py-1 text-gray-500 font-bold select-none cursor-default" title="現在のズーム倍率">100%</div>
+            <div class="h-px bg-gray-100 w-full my-0.5"></div>
+            <button onclick="window.zoomOut()" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="縮小">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
+            </button>
+            <div class="h-px bg-gray-100 w-full my-0.5"></div>
+            <button onclick="window.resetView()" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="中央に戻る">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+            </button>
+        </div>
+    </main>
+
+    <!-- モーダル: タスク追加/編集 -->
+    <div id="task-modal" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform scale-95 transition-transform duration-200" id="task-modal-content">
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <h2 id="task-modal-title" class="text-lg font-bold text-gray-800">タスクの設定</h2>
+                <button onclick="window.closeTaskModal()" class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="task-form" class="p-6">
+                <input type="hidden" id="task-modal-id">
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-bold text-gray-700 mb-1">タイトル <span class="text-red-500">*</span></label>
+                    <input type="text" id="task-title" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div class="mb-5">
+                    <label class="block text-sm font-bold text-gray-700 mb-1">所要日数 <span class="text-red-500">*</span></label>
+                    <div class="flex items-center">
+                        <input type="number" id="task-duration" min="0" value="1" required class="w-24 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <span class="ml-2 text-gray-500 text-sm">日</span>
+                    </div>
+                </div>
+
+                <div class="mb-5">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">先行タスク (依存関係)</label>
+                    <div id="task-deps-container" class="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-2 text-sm">
+                        <!-- JSでチェックボックスを挿入 -->
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">※このタスクを開始する前に完了していなければならないタスク</p>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">ラベル</label>
+                    <div id="task-labels-container" class="flex flex-wrap gap-2">
+                        <!-- JSでチェックボックスを挿入 -->
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-2 border-t border-gray-100">
+                    <button type="button" onclick="window.closeTaskModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200">キャンセル</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">保存する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- モーダル: ラベル追加/編集 -->
+    <div id="label-modal" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-200" id="label-modal-content">
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <h2 id="label-modal-title" class="text-lg font-bold text-gray-800">ラベルの設定</h2>
+                <button onclick="window.closeLabelModal()" class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="label-form" class="p-6">
+                <input type="hidden" id="label-modal-id">
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-bold text-gray-700 mb-1">ラベル名 <span class="text-red-500">*</span></label>
+                    <input type="text" id="label-name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="例: 開発, レビュー">
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">カラー</label>
+                    <div class="flex flex-wrap gap-2" id="color-picker-container">
+                        <!-- JSでカラーオプションを挿入 -->
+                    </div>
+                    <input type="hidden" id="label-color" required>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-2 border-t border-gray-100">
+                    <button type="button" onclick="window.closeLabelModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200">キャンセル</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">保存する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * アプリケーションの状態管理 (Store)
+         */
+        let state = {
+            goal: "新規プロジェクトのゴールを設定してください",
+            labels: [
+                { id: 'l1', name: '開発', color: '#3b82f6' }, // blue
+                { id: 'l2', name: 'デザイン', color: '#ec4899' }, // pink
+                { id: 'l3', name: 'マーケティング', color: '#10b981' } // emerald
+            ],
+            tasks: [] // デフォルトはタスクなし
+        };
+
+        const STORAGE_KEY = 'roadmap_app_data';
+
+        // ズーム設定
+        let currentZoom = 1;
+        const ZOOM_MIN = 0.3;
+        const ZOOM_MAX = 2.0;
+        const ZOOM_STEP = 0.1;
+        const BASE_CANVAS_WIDTH = 4000;
+        const BASE_CANVAS_HEIGHT = 3000;
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && typeof parsed === 'object') {
+                        state = { ...state, ...parsed };
+                    }
+                } catch (e) {
+                    console.error("ローカルデータの読み込みに失敗しました", e);
+                }
+            }
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
+
+        const COLOR_PALETTE = [
+            '#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981', 
+            '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#6b7280'
+        ];
+
+        // ノードのサイズ設定
+        const NODE_HEIGHT = 130;
+
+        // 日数に応じて横幅を動的に計算 (最小220px, 1日あたり+10px, 最大600px)
+        function getNodeWidth(duration) {
+            return Math.min(600, 220 + (duration * 10));
+        }
+
+        // 日数に応じてバッジの色を変える
+        function getDurationClass(duration) {
+            if (duration >= 14) return 'bg-red-50 text-red-700 border-red-200'; // 2週間以上: 重い
+            if (duration >= 7) return 'bg-amber-50 text-amber-700 border-amber-200'; // 1週間以上: 中
+            return 'bg-blue-50 text-blue-700 border-blue-200'; // それ未満: 軽い
+        }
+
+        // 日数に応じてアイコンを変える
+        function getDurationIcon(duration) {
+            if (duration >= 14) return '🔥';
+            if (duration >= 7) return '⏳';
+            return '⏱';
+        }
+
+        /**
+         * ズームコントロール
+         */
+        function setZoom(newZoom) {
+            const oldZoom = currentZoom;
+            currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newZoom));
+            
+            const container = document.getElementById('canvas-container');
+            const content = document.getElementById('canvas-content');
+            const svg = document.getElementById('canvas-svg');
+            
+            // ズームしても画面の中心座標（論理座標）が変わらないようにスクロール位置を調整
+            const centerX = (container.scrollLeft + container.clientWidth / 2) / oldZoom;
+            const centerY = (container.scrollTop + container.clientHeight / 2) / oldZoom;
+
+            content.setAttribute('transform', `scale(${currentZoom})`);
+            
+            // SVG全体のサイズを拡張してスクロール領域を確保
+            svg.setAttribute('width', BASE_CANVAS_WIDTH * currentZoom);
+            svg.setAttribute('height', BASE_CANVAS_HEIGHT * currentZoom);
+
+            // スクロール位置の再適用
+            container.scrollLeft = (centerX * currentZoom) - (container.clientWidth / 2);
+            container.scrollTop = (centerY * currentZoom) - (container.clientHeight / 2);
+
+            document.getElementById('zoom-level').textContent = Math.round(currentZoom * 100) + '%';
+        }
+
+        window.zoomIn = () => setZoom(currentZoom + ZOOM_STEP);
+        window.zoomOut = () => setZoom(currentZoom - ZOOM_STEP);
+        window.resetView = () => {
+            setZoom(1);
+            const container = document.getElementById('canvas-container');
+            container.scrollLeft = (BASE_CANVAS_WIDTH - container.clientWidth) / 2;
+            container.scrollTop = (BASE_CANVAS_HEIGHT - container.clientHeight) / 2;
+        };
+
+        /**
+         * クリティカルパス計算アルゴリズム (CPM)
+         */
+        function calculateCriticalPath(tasks) {
+            const taskMap = new Map();
+            
+            tasks.forEach(t => {
+                taskMap.set(t.id, { 
+                    ...t, successors: [], es: 0, ef: 0, ls: 0, lf: 0, isCritical: false 
+                });
+            });
+
+            const inDegree = new Map();
+            taskMap.forEach((_, id) => inDegree.set(id, 0));
+
+            tasks.forEach(t => {
+                t.dependencies.forEach(depId => {
+                    const depTask = taskMap.get(depId);
+                    if (depTask) {
+                        depTask.successors.push(t.id);
+                        inDegree.set(t.id, inDegree.get(t.id) + 1);
+                    }
+                });
+            });
+
+            const queue = [];
+            inDegree.forEach((degree, id) => { if (degree === 0) queue.push(id); });
+
+            const sorted = [];
+            while (queue.length > 0) {
+                const u = queue.shift();
+                sorted.push(u);
+                taskMap.get(u).successors.forEach(v => {
+                    inDegree.set(v, inDegree.get(v) - 1);
+                    if (inDegree.get(v) === 0) queue.push(v);
+                });
+            }
+
+            if (sorted.length !== tasks.length) return { taskMap, hasCycle: true, totalDuration: 0 };
+
+            let projectDuration = 0;
+            sorted.forEach(id => {
+                const t = taskMap.get(id);
+                let maxDepEF = 0;
+                t.dependencies.forEach(depId => { maxDepEF = Math.max(maxDepEF, taskMap.get(depId).ef); });
+                t.es = maxDepEF;
+                t.ef = t.es + t.duration;
+                projectDuration = Math.max(projectDuration, t.ef);
+            });
+
+            const reversed = [...sorted].reverse();
+            reversed.forEach(id => {
+                const t = taskMap.get(id);
+                if (t.successors.length === 0) {
+                    t.lf = projectDuration;
+                } else {
+                    let minSuccLS = Infinity;
+                    t.successors.forEach(succId => { minSuccLS = Math.min(minSuccLS, taskMap.get(succId).ls); });
+                    t.lf = minSuccLS;
+                }
+                t.ls = t.lf - t.duration;
+            });
+
+            taskMap.forEach(t => { if (t.ef === t.lf) t.isCritical = true; });
+
+            return { taskMap, hasCycle: false, totalDuration: projectDuration };
+        }
+
+        /**
+         * ビューの更新
+         */
+        function updateView() {
+            const result = calculateCriticalPath(state.tasks);
+            if (result.hasCycle) { console.error("循環参照が存在します"); return; }
+
+            document.getElementById('goal-input').value = state.goal;
+            document.getElementById('total-duration').textContent = result.totalDuration;
+            
+            // 進捗の計算
+            const totalTasks = state.tasks.length;
+            const completedTasks = state.tasks.filter(t => t.completed).length;
+            const progressPercent = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+            
+            document.getElementById('progress-text').textContent = `${completedTasks} / ${totalTasks} (${progressPercent}%)`;
+            document.getElementById('progress-bar').style.width = `${progressPercent}%`;
+            
+            renderSidebarLabels();
+            renderGraph(result.taskMap);
+            saveToLocalStorage();
+        }
+
+        function renderSidebarLabels() {
+            const list = document.getElementById('labels-list');
+            list.innerHTML = state.labels.map(l => `
+                <div class="flex items-center justify-between group py-1.5 px-2 hover:bg-gray-50 rounded-md transition-colors border border-transparent hover:border-gray-200">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full shadow-inner" style="background-color: ${l.color}"></span>
+                        <span class="text-sm font-medium text-gray-700">${l.name}</span>
+                    </div>
+                    <div class="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+                        <button onclick="window.openLabelModal('${l.id}')" class="text-gray-400 hover:text-blue-600 p-1" title="編集"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button>
+                        <button onclick="window.deleteLabel('${l.id}')" class="text-gray-400 hover:text-red-600 p-1" title="削除"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderGraph(taskMap) {
+            const edgesLayer = document.getElementById('edges-layer');
+            const nodesLayer = document.getElementById('nodes-layer');
+            edgesLayer.innerHTML = '';
+            nodesLayer.innerHTML = '';
+
+            state.tasks.forEach(task => {
+                task.dependencies.forEach(depId => {
+                    const depTask = state.tasks.find(t => t.id === depId);
+                    if (!depTask) return;
+                    const targetNode = taskMap.get(task.id);
+                    const sourceNode = taskMap.get(depId);
+                    const isCriticalEdge = sourceNode.isCritical && targetNode.isCritical && (sourceNode.ef === targetNode.es);
+                    drawEdge(edgesLayer, sourceNode, targetNode, isCriticalEdge);
+                });
+            });
+
+            state.tasks.forEach(task => {
+                const nodeData = taskMap.get(task.id);
+                nodesLayer.appendChild(createNodeElement(nodeData));
+            });
+        }
+
+        function drawEdge(container, source, target, isCritical) {
+            const sourceWidth = getNodeWidth(source.duration);
+            const startX = source.x + sourceWidth;
+            const startY = source.y + (NODE_HEIGHT / 2);
+            const endX = target.x;
+            const endY = target.y + (NODE_HEIGHT / 2);
+
+            const offset = Math.max(Math.abs(endX - startX) / 2, 40);
+            const control1X = startX + offset;
+            const control1Y = startY;
+            const control2X = endX - offset;
+            const control2Y = endY;
+
+            const pathData = `M ${startX} ${startY} C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${endX} ${endY}`;
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', pathData);
+            path.setAttribute('class', isCritical ? 'edge-critical' : 'edge-normal');
+            path.setAttribute('marker-end', isCritical ? 'url(#arrow-critical)' : 'url(#arrow-normal)');
+            // ハイライト機能のためにIDを保持
+            path.setAttribute('data-source', source.id);
+            path.setAttribute('data-target', target.id);
+
+            container.appendChild(path);
+        }
+
+        function createNodeElement(nodeData) {
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.setAttribute('transform', `translate(${nodeData.x}, ${nodeData.y})`);
+            g.classList.add('task-node');
+            g.dataset.id = nodeData.id;
+
+            const width = getNodeWidth(nodeData.duration);
+            const fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+            fo.setAttribute('width', width);
+            fo.setAttribute('height', NODE_HEIGHT);
+
+            const isCrit = nodeData.isCritical;
+            const isCompleted = nodeData.completed || false;
+            
+            const borderColor = isCrit ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 hover:border-gray-300';
+            const headerBg = isCrit ? 'bg-red-50' : 'bg-gray-50';
+            
+            const completedCardClass = isCompleted ? 'opacity-60' : '';
+            const completedTitleClass = isCompleted ? 'line-through text-gray-500' : 'text-gray-800';
+
+            const labelsHtml = nodeData.labels.map(lid => {
+                const l = state.labels.find(lbl => lbl.id === lid);
+                if(!l) return '';
+                return `<span class="px-1.5 py-0.5 rounded-sm text-[10px] font-bold text-white shadow-sm truncate max-w-[80px]" style="background-color: ${l.color}">${l.name}</span>`;
+            }).join('');
+
+            fo.innerHTML = `
+                <div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full p-2 select-none">
+                    <div class="bg-white rounded-xl border-2 ${borderColor} shadow-sm flex flex-col h-full overflow-hidden pointer-events-auto transition-all hover:shadow-md ${completedCardClass}">
+                        <div class="${headerBg} px-3 py-2 border-b border-gray-100 flex justify-between items-center cursor-grab active:cursor-grabbing node-drag-handle">
+                            <div class="flex gap-2 items-center flex-1 overflow-hidden mr-2">
+                                <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer pointer-events-auto" 
+                                    ${isCompleted ? 'checked' : ''} 
+                                    onchange="window.toggleTaskCompletion('${nodeData.id}')"
+                                    title="完了マーク">
+                                <div class="flex gap-1 overflow-hidden flex-1">${labelsHtml}</div>
+                            </div>
+                            <div class="flex gap-1">
+                                <button onclick="window.openTaskModal('${nodeData.id}')" class="text-gray-400 hover:text-blue-600 bg-white hover:bg-blue-50 rounded p-1 shadow-sm transition-colors border border-gray-100 pointer-events-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                                <button onclick="window.deleteTask('${nodeData.id}')" class="text-gray-400 hover:text-red-600 bg-white hover:bg-red-50 rounded p-1 shadow-sm transition-colors border border-gray-100 pointer-events-auto"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                            </div>
+                        </div>
+                        <div class="p-3 flex-1 flex flex-col justify-between node-drag-handle cursor-grab active:cursor-grabbing">
+                            <div class="font-bold text-sm leading-snug line-clamp-2 ${completedTitleClass}">${nodeData.title}</div>
+                            <div class="flex justify-between items-end mt-2">
+                                <div class="text-xs font-medium whitespace-nowrap">
+                                    <span class="inline-flex items-center border rounded px-1.5 py-0.5 shadow-sm ${getDurationClass(nodeData.duration)} whitespace-nowrap">
+                                        <span class="mr-1 opacity-80">${getDurationIcon(nodeData.duration)}</span>
+                                        ${nodeData.duration} 日
+                                    </span>
+                                </div>
+                                <div class="text-[11px] font-mono font-bold ${isCrit ? 'text-red-600 bg-red-100' : 'text-blue-600 bg-blue-50'} px-2 py-0.5 rounded shadow-sm border ${isCrit ? 'border-red-200' : 'border-blue-100'} whitespace-nowrap" title="Earliest Start - Earliest Finish">
+                                    Day ${nodeData.es} <span class="text-gray-400 font-sans mx-0.5">➔</span> Day ${nodeData.ef}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            g.appendChild(fo);
+            return g;
+        }
+
+        /**
+         * ドラッグ＆ドロップ ＆ パン実装
+         */
+        const svg = document.getElementById('canvas-svg');
+        const contentGroup = document.getElementById('canvas-content');
+        const container = document.getElementById('canvas-container');
+        
+        let draggingTask = null;
+        let dragOffset = { x: 0, y: 0 };
+        
+        let isPanning = false;
+        let startPan = { x: 0, y: 0 };
+        let scrollLeftStart = 0;
+        let scrollTopStart = 0;
+
+        container.addEventListener('mousedown', (e) => {
+            if (e.button !== 0 && e.button !== 1) return; // 左クリック・中クリックのみ
+            if (e.target.closest('button') || e.target.closest('input[type="checkbox"]')) return;
+
+            const handle = e.target.closest('.node-drag-handle');
+            const nodeEl = e.target.closest('.task-node');
+
+            if (handle && nodeEl) {
+                // ノードのドラッグ開始
+                const taskId = nodeEl.dataset.id;
+                draggingTask = state.tasks.find(t => t.id === taskId);
+                
+                const pt = svg.createSVGPoint();
+                pt.x = e.clientX;
+                pt.y = e.clientY;
+                // ズームを加味した座標変換
+                const svgP = pt.matrixTransform(contentGroup.getScreenCTM().inverse());
+                
+                dragOffset.x = svgP.x - draggingTask.x;
+                dragOffset.y = svgP.y - draggingTask.y;
+            } else if (e.target.classList.contains('canvas-bg')) {
+                // 背景のパン開始
+                isPanning = true;
+                startPan = { x: e.clientX, y: e.clientY };
+                scrollLeftStart = container.scrollLeft;
+                scrollTopStart = container.scrollTop;
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (draggingTask) {
+                e.preventDefault();
+                const pt = svg.createSVGPoint();
+                pt.x = e.clientX;
+                pt.y = e.clientY;
+                const svgP = pt.matrixTransform(contentGroup.getScreenCTM().inverse());
+                
+                draggingTask.x = Math.max(0, svgP.x - dragOffset.x);
+                draggingTask.y = Math.max(0, svgP.y - dragOffset.y);
+                updateView();
+            } else if (isPanning) {
+                e.preventDefault();
+                const dx = e.clientX - startPan.x;
+                const dy = e.clientY - startPan.y;
+                container.scrollLeft = scrollLeftStart - dx;
+                container.scrollTop = scrollTopStart - dy;
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            draggingTask = null;
+            isPanning = false;
+        });
+
+        /**
+         * 依存関係のハイライト機能 (ホバーエフェクト)
+         */
+        const nodesLayer = document.getElementById('nodes-layer');
+        
+        nodesLayer.addEventListener('mouseover', (e) => {
+            const nodeEl = e.target.closest('.task-node');
+            if (!nodeEl || draggingTask) return;
+            highlightConnections(nodeEl.dataset.id);
+        });
+
+        nodesLayer.addEventListener('mouseout', (e) => {
+            if (!e.target.closest('.task-node') || draggingTask) return;
+            resetHighlights();
+        });
+
+        function highlightConnections(taskId) {
+            const relatedIds = new Set([taskId]);
+            const taskMap = calculateCriticalPath(state.tasks).taskMap;
+            
+            // 関連するすべての上流・下流タスクを再帰的に探す
+            function traverseUp(id) {
+                const node = taskMap.get(id);
+                if(!node) return;
+                node.dependencies.forEach(depId => {
+                    if(!relatedIds.has(depId)) { relatedIds.add(depId); traverseUp(depId); }
+                });
+            }
+            function traverseDown(id) {
+                const node = taskMap.get(id);
+                if(!node) return;
+                node.successors.forEach(succId => {
+                    if(!relatedIds.has(succId)) { relatedIds.add(succId); traverseDown(succId); }
+                });
+            }
+            
+            traverseUp(taskId);
+            traverseDown(taskId);
+
+            // スタイルの適用
+            document.querySelectorAll('.task-node').forEach(el => {
+                if (relatedIds.has(el.dataset.id)) {
+                    el.style.opacity = '1';
+                    el.style.filter = 'drop-shadow(0 4px 6px rgba(0,0,0,0.15))';
+                } else {
+                    el.style.opacity = '0.2';
+                    el.style.filter = 'none';
+                }
+            });
+
+            document.querySelectorAll('#edges-layer path').forEach(path => {
+                const sourceId = path.dataset.source;
+                const targetId = path.dataset.target;
+                if (relatedIds.has(sourceId) && relatedIds.has(targetId)) {
+                    path.style.opacity = '1';
+                    path.style.strokeWidth = path.classList.contains('edge-critical') ? '4.5px' : '3.5px';
+                } else {
+                    path.style.opacity = '0.05';
+                }
+            });
+        }
+
+        function resetHighlights() {
+            document.querySelectorAll('.task-node').forEach(el => {
+                el.style.opacity = '1';
+                el.style.filter = 'none';
+            });
+            document.querySelectorAll('#edges-layer path').forEach(path => {
+                path.style.opacity = '1';
+                path.style.strokeWidth = '';
+            });
+        }
+
+        // ゴールテキストの同期
+        document.getElementById('goal-input').addEventListener('input', (e) => {
+            state.goal = e.target.value;
+            saveToLocalStorage();
+        });
+
+        /**
+         * モーダル操作群
+         */
+        window.openTaskModal = (taskId = null) => {
+            const modal = document.getElementById('task-modal');
+            const content = document.getElementById('task-modal-content');
+            const form = document.getElementById('task-form');
+            const depsContainer = document.getElementById('task-deps-container');
+            const labelsContainer = document.getElementById('task-labels-container');
+
+            form.reset();
+            depsContainer.innerHTML = '';
+            labelsContainer.innerHTML = '';
+
+            let currentTask = null;
+            if (taskId) {
+                currentTask = state.tasks.find(t => t.id === taskId);
+                document.getElementById('task-modal-title').textContent = 'タスクの編集';
+                document.getElementById('task-modal-id').value = currentTask.id;
+                document.getElementById('task-title').value = currentTask.title;
+                document.getElementById('task-duration').value = currentTask.duration;
+            } else {
+                document.getElementById('task-modal-title').textContent = '新規タスクの追加';
+                document.getElementById('task-modal-id').value = '';
+            }
+
+            if (state.tasks.length === 0 || (state.tasks.length === 1 && taskId)) {
+                depsContainer.innerHTML = '<div class="text-gray-400 text-sm p-2 text-center">選択可能な先行タスクがありません</div>';
+            } else {
+                state.tasks.forEach(t => {
+                    if (taskId && t.id === taskId) return;
+                    const isChecked = currentTask && currentTask.dependencies.includes(t.id) ? 'checked' : '';
+                    depsContainer.innerHTML += `
+                        <label class="flex items-center p-2 hover:bg-white rounded border border-transparent hover:border-gray-200 cursor-pointer transition-colors">
+                            <input type="checkbox" name="dependencies" value="${t.id}" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" ${isChecked}>
+                            <span class="ml-3 text-sm font-medium text-gray-700">${t.title}</span>
+                        </label>`;
+                });
+            }
+
+            state.labels.forEach(l => {
+                const isChecked = currentTask && currentTask.labels.includes(l.id) ? 'checked' : '';
+                labelsContainer.innerHTML += `
+                    <label class="inline-flex items-center bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 cursor-pointer hover:bg-gray-100 transition-colors">
+                        <input type="checkbox" name="labels" value="${l.id}" class="w-3.5 h-3.5 text-blue-600 rounded-sm border-gray-300 focus:ring-blue-500 mr-2" ${isChecked}>
+                        <span class="w-2.5 h-2.5 rounded-full mr-1.5" style="background-color: ${l.color}"></span>
+                        <span class="text-sm text-gray-700 font-medium">${l.name}</span>
+                    </label>`;
+            });
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+        };
+
+        window.closeTaskModal = () => {
+            const modal = document.getElementById('task-modal');
+            const content = document.getElementById('task-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        };
+
+        document.getElementById('task-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('task-modal-id').value;
+            const title = document.getElementById('task-title').value.trim();
+            const duration = parseInt(document.getElementById('task-duration').value, 10);
+            
+            const dependencies = Array.from(document.querySelectorAll('input[name="dependencies"]:checked')).map(cb => cb.value);
+            const labels = Array.from(document.querySelectorAll('input[name="labels"]:checked')).map(cb => cb.value);
+
+            const newTasks = JSON.parse(JSON.stringify(state.tasks));
+            
+            if (id) {
+                const idx = newTasks.findIndex(t => t.id === id);
+                newTasks[idx] = { ...newTasks[idx], title, duration, dependencies, labels };
+            } else {
+                const newId = 't_' + Date.now();
+                
+                // ズームレベルを加味して、現在見えている画面の中央にタスクを配置
+                const scrollX = container.scrollLeft;
+                const scrollY = container.scrollTop;
+                const viewWidth = container.clientWidth;
+                const viewHeight = container.clientHeight;
+                
+                const logicalX = (scrollX + viewWidth / 2) / currentZoom;
+                const logicalY = (scrollY + viewHeight / 2) / currentZoom;
+                
+                const width = getNodeWidth(duration);
+
+                newTasks.push({
+                    id: newId, title, duration, dependencies, labels,
+                    x: logicalX - (width / 2) + (Math.random() * 40 - 20), 
+                    y: logicalY - (NODE_HEIGHT / 2) + (Math.random() * 40 - 20)
+                });
+            }
+
+            const result = calculateCriticalPath(newTasks);
+            if (result.hasCycle) {
+                alert("エラー：タスクの依存関係に循環（ループ）が発生しています。\n依存関係を見直してください。");
+                return;
+            }
+
+            state.tasks = newTasks;
+            window.closeTaskModal();
+            updateView();
+        });
+
+        window.deleteTask = (id) => {
+            if (!confirm("このタスクを削除しますか？\n他のタスクの依存関係からも削除されます。")) return;
+            state.tasks = state.tasks.filter(t => t.id !== id);
+            state.tasks.forEach(t => t.dependencies = t.dependencies.filter(depId => depId !== id));
+            updateView();
+        };
+
+        // タスクの完了トグル
+        window.toggleTaskCompletion = (taskId) => {
+            const task = state.tasks.find(t => t.id === taskId);
+            if (task) {
+                task.completed = !task.completed;
+                updateView();
+            }
+        };
+
+        // 完了状態の一括リセット
+        window.resetCompletions = () => {
+            if (state.tasks.length === 0) return;
+            if (!confirm("すべてのタスクの完了状態を未完了に戻しますか？\n（テンプレートとして再利用する際に便利です）")) return;
+            
+            state.tasks.forEach(t => t.completed = false);
+            updateView();
+        };
+
+        // ラベルモーダル
+         window.openLabelModal = (labelId = null) => {
+            const modal = document.getElementById('label-modal');
+            const content = document.getElementById('label-modal-content');
+            const form = document.getElementById('label-form');
+            
+            form.reset();
+            let selectedColor = COLOR_PALETTE[0];
+            if (labelId) {
+                const label = state.labels.find(l => l.id === labelId);
+                document.getElementById('label-modal-title').textContent = 'ラベルの編集';
+                document.getElementById('label-modal-id').value = label.id;
+                document.getElementById('label-name').value = label.name;
+                selectedColor = label.color;
+            } else {
+                document.getElementById('label-modal-title').textContent = '新規ラベル';
+                document.getElementById('label-modal-id').value = '';
+            }
+            document.getElementById('label-color').value = selectedColor;
+
+            document.getElementById('color-picker-container').innerHTML = COLOR_PALETTE.map(c => `
+                <button type="button" 
+                        onclick="document.getElementById('label-color').value='${c}'; Array.from(this.parentNode.children).forEach(el=>el.classList.remove('ring-2', 'ring-offset-2', 'ring-gray-400')); this.classList.add('ring-2', 'ring-offset-2', 'ring-gray-400');"
+                        class="w-8 h-8 rounded-full shadow-sm transition-transform hover:scale-110 focus:outline-none ${c === selectedColor ? 'ring-2 ring-offset-2 ring-gray-400' : ''}" 
+                        style="background-color: ${c}"></button>
+            `).join('');
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+        };
+
+        window.closeLabelModal = () => {
+            const modal = document.getElementById('label-modal');
+            const content = document.getElementById('label-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        };
+
+        document.getElementById('label-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('label-modal-id').value;
+            const name = document.getElementById('label-name').value.trim();
+            const color = document.getElementById('label-color').value;
+            
+            if (id) {
+                const idx = state.labels.findIndex(l => l.id === id);
+                state.labels[idx] = { id, name, color };
+            } else {
+                state.labels.push({ id: 'l_' + Date.now(), name, color });
+            }
+            window.closeLabelModal();
+            updateView();
+        });
+
+        window.deleteLabel = (id) => {
+            if (!confirm("このラベルを削除しますか？\n関連付けられたタスクからも解除されます。")) return;
+            state.labels = state.labels.filter(l => l.id !== id);
+            state.tasks.forEach(t => t.labels = t.labels.filter(lId => lId !== id));
+            updateView();
+        };
+
+        // エクスポート用のファイル名を生成する共通関数
+        function generateExportFileName(extension) {
+            // ファイル名に使用できない文字や改行をアンダースコアに置換
+            const safeGoalName = state.goal.replace(/[\\/:*?"<>|\n\r]/g, '_').trim() || 'Project';
+            const date = new Date();
+            const yyyy = date.getFullYear();
+            const MM = (date.getMonth() + 1).toString().padStart(2, '0');
+            const dd = date.getDate().toString().padStart(2, '0');
+            const hh = date.getHours().toString().padStart(2, '0');
+            const mm = date.getMinutes().toString().padStart(2, '0');
+            
+            // 年月日時分 (yyyyMMddhhmm)
+            const dateStr = `${yyyy}${MM}${dd}${hh}${mm}`;
+            return `${safeGoalName}_Roadmap_${dateStr}.${extension}`;
+        }
+
+        // データ入出力
+        window.exportJSON = () => {
+            const dataStr = JSON.stringify(state, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            
+            a.href = url;
+            a.download = generateExportFileName('json');
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        window.importJSON = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.tasks)) {
+                        state = { ...state, ...parsed };
+                        updateView();
+                        alert('データをインポートしました。');
+                    } else { throw new Error('Invalid format'); }
+                } catch (err) { alert('ファイルの読み込みに失敗しました。正しいロードマップデータ(JSON)を選択してください。'); }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        };
+
+        // 画像としてエクスポート (PNG)
+        window.exportImage = () => {
+            if (state.tasks.length === 0) {
+                alert('出力するタスクがありません。');
+                return;
+            }
+
+            const svg = document.getElementById('canvas-svg');
+            const contentGroup = document.getElementById('canvas-content');
+            const container = document.getElementById('canvas-container');
+            const btn = document.getElementById('btn-export-image');
+            
+            // 現在の状態を保存
+            const originalWidth = svg.getAttribute('width');
+            const originalHeight = svg.getAttribute('height');
+            const originalTransform = contentGroup.getAttribute('transform');
+            const originalScrollLeft = container.scrollLeft;
+            const originalScrollTop = container.scrollTop;
+            const originalBtnContent = btn.innerHTML;
+
+            // バウンディングボックスの計算 (タスクが存在する領域を特定)
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            state.tasks.forEach(t => {
+                minX = Math.min(minX, t.x);
+                minY = Math.min(minY, t.y);
+                maxX = Math.max(maxX, t.x + getNodeWidth(t.duration));
+                maxY = Math.max(maxY, t.y + NODE_HEIGHT);
+            });
+
+            // 余白(パディング)の設定
+            const padding = 60;
+            minX = Math.max(0, minX - padding);
+            minY = Math.max(0, minY - padding);
+            maxX = maxX + padding;
+            maxY = maxY + padding;
+
+            const cropWidth = maxX - minX;
+            const cropHeight = maxY - minY;
+
+            // ボタンをローディング状態に変更
+            btn.innerHTML = `<svg class="animate-spin w-4 h-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="text-gray-500">処理中</span>`;
+            btn.disabled = true;
+
+            // 一時的にSVGをクロップサイズに変更し、位置をずらす
+            svg.setAttribute('width', cropWidth);
+            svg.setAttribute('height', cropHeight);
+            contentGroup.setAttribute('transform', `translate(${-minX}, ${-minY})`);
+
+            // 背景グリッドと中央マーカーの調整
+            const bg = document.getElementById('canvas-bg');
+            bg.setAttribute('width', cropWidth + minX); 
+            bg.setAttribute('height', cropHeight + minY);
+            
+            const centerMarker = document.getElementById('center-marker');
+            const origMarkerDisplay = centerMarker.style.display;
+            centerMarker.style.display = 'none'; // 出力画像には中央マーカーを含めない
+
+            // DOMの更新を待ってからキャプチャ実行
+            setTimeout(() => {
+                // htmlToImageを使用してSVGをPNGに変換
+                htmlToImage.toPng(svg, { backgroundColor: '#f1f5f9' })
+                    .then(dataUrl => {
+                        const link = document.createElement('a');
+                        link.download = generateExportFileName('png');
+                        link.href = dataUrl;
+                        link.click();
+                    })
+                    .catch(err => {
+                        console.error('画像生成エラー:', err);
+                        alert('画像の生成に失敗しました。');
+                    })
+                    .finally(() => {
+                        // 状態をすべて元に戻す
+                        svg.setAttribute('width', originalWidth);
+                        svg.setAttribute('height', originalHeight);
+                        contentGroup.setAttribute('transform', originalTransform);
+                        bg.setAttribute('width', BASE_CANVAS_WIDTH);
+                        bg.setAttribute('height', BASE_CANVAS_HEIGHT);
+                        centerMarker.style.display = origMarkerDisplay;
+                        
+                        // スクロール位置とズームの復元
+                        setZoom(currentZoom);
+                        container.scrollLeft = originalScrollLeft;
+                        container.scrollTop = originalScrollTop;
+
+                        btn.innerHTML = originalBtnContent;
+                        btn.disabled = false;
+                    });
+            }, 100);
+        };
+
+        // 初期化
+        window.onload = () => {
+            loadFromLocalStorage();
+            updateView();
+            window.resetView(); // 初期位置を中央＆100%に設定
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Task & Actual Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f8fafc;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* タイムラインのグリッド線 */
+        .timeline-grid {
+            background-image: linear-gradient(to bottom, #d1d5db 1px, transparent 1px);
+            background-size: 100% 60px; /* 1時間 = 60px */
+            background-position-y: 32px; /* ヘッダー(32px)分ずらす */
+        }
+        
+        .timeline-subgrid {
+            background-image: linear-gradient(to bottom, #f3f4f6 1px, transparent 1px);
+            background-size: 100% 15px; /* 15分刻みの補助線 */
+            background-position-y: 32px;
+        }
+
+        /* ドラッグ中のスタイル */
+        .dragging {
+            opacity: 0.4;
+            transform: scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* タスクボックスの基本スタイル */
+        .task-box {
+            position: absolute;
+            left: 6px;
+            right: 6px;
+            padding: 4px 6px;
+            border-radius: 6px;
+            border-left-width: 4px;
+            font-size: 0.8rem;
+            overflow: hidden;
+            cursor: grab;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: box-shadow 0.2s, transform 0.2s, background-color 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .task-box:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+            z-index: 20;
+        }
+        .task-box:active {
+            cursor: grabbing;
+        }
+
+        /* リサイズハンドルのスタイル */
+        .resize-handle {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            cursor: ns-resize;
+            background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.05));
+            transition: background 0.2s;
+        }
+        .task-box:hover .resize-handle {
+            background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.15));
+        }
+        .resize-handle::after {
+            content: '';
+            position: absolute;
+            bottom: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 2px;
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 1px;
+        }
+
+        /* ラベルタグのスタイル */
+        .label-badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 1px 6px;
+            border-radius: 9999px; /* 丸みのあるピル型 */
+            background-color: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            margin-right: 3px;
+            margin-bottom: 2px;
+            white-space: nowrap;
+        }
+
+        /* カテゴリ別の色 */
+        .type-mtg { background-color: #eff6ff; border-left-color: #3b82f6; color: #1e3a8a; } /* Blue */
+        .type-task { background-color: #f0fdf4; border-left-color: #22c55e; color: #14532d; } /* Green */
+        .type-buffer { background-color: #f9fafb; border-left-color: #9ca3af; color: #374151; } /* Gray */
+
+        .type-mtg:hover { background-color: #dbeafe; }
+        .type-task:hover { background-color: #dcfce7; }
+        .type-buffer:hover { background-color: #f3f4f6; }
+
+        /* 時間軸ラベルのスタイル */
+        .time-label {
+            position: absolute;
+            width: 100%;
+            height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #9ca3af;
+        }
+
+        /* アニメーション */
+        .fade-in {
+            animation: fadeIn 0.2s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        /* ボタン共通のモダンスタイル */
+        .btn-glass {
+            background-color: white;
+            color: #4b5563;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+        .btn-glass:hover {
+            background-color: #f9fafb;
+            color: #111827;
+            border-color: #d1d5db;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 h-screen flex flex-col overflow-hidden font-sans text-gray-800 selection:bg-blue-200">
+
+    <!-- ヘッダー -->
+    <header class="bg-white border-b px-6 py-3 flex items-center justify-between shadow-sm z-50 relative">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-bold text-slate-700 tracking-tight flex items-center">
+                <div class="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center mr-2 shadow-sm">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                Daily Task
+            </h1>
+            
+            <!-- 日付選択 -->
+            <div class="flex items-center gap-1 bg-slate-50 border border-slate-200 p-1 rounded-lg shadow-inner ml-2">
+                <button onclick="app.changeDate(-1)" class="w-8 h-7 flex items-center justify-center rounded text-slate-500 hover:bg-white hover:shadow-sm hover:text-blue-600 transition"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                <input type="date" id="datePicker" class="font-bold text-slate-700 bg-transparent border-none outline-none cursor-pointer px-1 text-sm" onchange="app.onDateChange()">
+                <button onclick="app.changeDate(1)" class="w-8 h-7 flex items-center justify-center rounded text-slate-500 hover:bg-white hover:shadow-sm hover:text-blue-600 transition"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                <button onclick="app.goToToday()" class="ml-1 px-3 h-7 text-xs font-bold text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition">今日</button>
+            </div>
+
+            <!-- 時間設定 -->
+            <div class="flex items-center gap-2 text-sm text-slate-600 ml-4">
+                <i class="fa-regular fa-clock text-slate-400"></i>
+                <input type="number" id="startHour" value="9" min="0" max="23" class="w-12 p-1 border rounded text-center bg-slate-50 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none">
+                <span class="text-slate-400">〜</span>
+                <input type="number" id="endHour" value="19" min="1" max="24" class="w-12 p-1 border rounded text-center bg-slate-50 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none">
+                <button onclick="app.updateSettings()" class="text-slate-400 hover:text-blue-600 transition p-1" title="表示時間を更新"><i class="fa-solid fa-arrows-rotate"></i></button>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="app.openLabelManager()" class="px-3 py-1.5 text-sm btn-glass rounded-md" title="タグ管理">
+                <i class="fa-solid fa-tags text-slate-400 mr-1"></i> タグ
+            </button>
+            
+            <button onclick="app.openCopyModal()" class="px-3 py-1.5 text-sm btn-glass rounded-md" title="別の日付へコピー">
+                <i class="fa-regular fa-copy text-slate-400 mr-1"></i> コピー
+            </button>
+
+            <div class="relative group">
+                <button class="px-3 py-1.5 text-sm btn-glass rounded-md">
+                    <i class="fa-solid fa-database text-slate-400 mr-1"></i> データ
+                </button>
+                <!-- ドロップダウンメニュー -->
+                <div class="absolute right-0 top-full pt-2 hidden group-hover:block z-50 fade-in">
+                    <div class="w-56 bg-white border border-slate-100 rounded-lg shadow-xl overflow-hidden">
+                        <a href="#" onclick="app.downloadBackup()" class="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-download w-5 text-slate-400"></i> バックアップ保存(JSON)</a>
+                        <a href="#" onclick="document.getElementById('fileInput').click()" class="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-upload w-5 text-slate-400"></i> バックアップ復元</a>
+                        <a href="#" onclick="app.downloadCSV()" class="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-file-csv w-5 text-slate-400"></i> 全履歴CSV出力</a>
+                        <div class="border-t border-slate-100 my-1"></div>
+                        <a href="#" onclick="app.clearAllData()" class="block px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"><i class="fa-solid fa-trash w-5 text-red-400"></i> 全データ削除</a>
+                    </div>
+                </div>
+                <input type="file" id="fileInput" class="hidden" accept=".json" onchange="app.uploadBackup(this)">
+            </div>
+            
+            <div class="w-px bg-slate-200 mx-1"></div> <!-- セパレーター -->
+
+            <button onclick="app.showAnalysis()" class="px-4 py-1.5 text-sm bg-indigo-50 text-indigo-600 border border-indigo-200 font-bold rounded-md hover:bg-indigo-100 transition shadow-sm">
+                <i class="fa-solid fa-chart-pie mr-1"></i> レポート
+            </button>
+
+            <button onclick="app.exportDailyReport()" class="px-4 py-1.5 text-sm bg-blue-600 text-white font-bold rounded-md hover:bg-blue-700 transition shadow-sm">
+                <i class="fa-solid fa-pen-to-square mr-1"></i> 日報作成
+            </button>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- サイドバー（ツールボックス） -->
+        <aside class="w-56 bg-white border-r p-5 flex flex-col gap-4 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
+            <div>
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Toolbox</h2>
+                <div class="text-[11px] text-slate-500 leading-tight">ボックスをタイムラインに<br>ドラッグして追加します。</div>
+            </div>
+            
+            <div class="draggable-source type-mtg p-3 rounded-lg shadow-sm cursor-grab border-l-4 border-blue-500 bg-blue-50 hover:-translate-y-0.5 transition-transform" draggable="true" data-type="MTG">
+                <div class="font-bold text-sm">MTG</div>
+                <div class="text-xs opacity-70">会議・打ち合わせ</div>
+            </div>
+            
+            <div class="draggable-source type-task p-3 rounded-lg shadow-sm cursor-grab border-l-4 border-green-500 bg-green-50 hover:-translate-y-0.5 transition-transform" draggable="true" data-type="Task">
+                <div class="font-bold text-sm">タスク</div>
+                <div class="text-xs opacity-70">作業・制作</div>
+            </div>
+            
+            <div class="draggable-source type-buffer p-3 rounded-lg shadow-sm cursor-grab border-l-4 border-slate-400 bg-slate-50 hover:-translate-y-0.5 transition-transform" draggable="true" data-type="Buffer">
+                <div class="font-bold text-sm">バッファ</div>
+                <div class="text-xs opacity-70">移動・休憩・予備</div>
+            </div>
+
+            <div class="mt-auto p-4 bg-amber-50 text-xs text-amber-800 rounded-lg border border-amber-100 shadow-sm leading-relaxed">
+                <div class="font-bold mb-1 flex items-center"><i class="fa-regular fa-lightbulb text-amber-500 mr-1.5 text-sm"></i> Tips</div>
+                <ul class="list-disc pl-4 space-y-1 opacity-90">
+                    <li>タスク下部をドラッグで時間を伸縮できます。</li>
+                    <li>Ctrlを押しながらドラッグでコピーできます。</li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- タイムラインエリア -->
+        <main class="flex-1 flex overflow-hidden relative bg-white" id="mainContainer">
+            <!-- 時間軸ラベル -->
+            <div class="w-16 bg-white border-r border-slate-100 flex-shrink-0 overflow-hidden relative z-10" id="timeLabelsContainer">
+                <div id="timeLabels" class="relative mt-8">
+                    <!-- JSで生成 -->
+                </div>
+            </div>
+
+            <!-- スクロール可能なエリア -->
+            <div class="flex-1 overflow-y-auto relative timeline-subgrid" id="scrollArea">
+                <div class="flex h-full min-h-[1000px] timeline-grid relative" id="gridBackground">
+                    
+                    <!-- 予定 (Plan) レーン -->
+                    <div class="flex-1 border-r border-slate-200 relative group flex flex-col" id="planLane">
+                        <div class="sticky top-0 bg-white/95 backdrop-blur border-b border-slate-200 p-2 text-center font-bold text-slate-600 z-30 shadow-sm h-9 flex items-center justify-center shrink-0">
+                            予定 (Plan)
+                            <button onclick="app.clearLane('plan')" class="absolute right-3 text-slate-300 hover:text-red-500 transition-colors bg-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100" title="この日の予定をすべて消去">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                        </div>
+                        <div class="lane-content relative flex-1 w-full" data-lane="plan">
+                            <!-- タスクはここに配置される -->
+                        </div>
+                    </div>
+
+                    <!-- 実績 (Actual) レーン -->
+                    <div class="flex-1 relative group flex flex-col" id="actualLane">
+                        <div class="sticky top-0 bg-white/95 backdrop-blur border-b border-slate-200 p-2 text-center font-bold text-slate-600 z-30 shadow-sm h-9 flex items-center justify-center shrink-0">
+                            実績 (Actual)
+                            <button onclick="app.clearLane('actual')" class="absolute right-3 text-slate-300 hover:text-red-500 transition-colors bg-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100" title="この日の実績をすべて消去">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                        </div>
+                        <div class="lane-content relative flex-1 w-full" data-lane="actual">
+                            <!-- タスクはここに配置される -->
+                        </div>
+                    </div>
+
+                </div>
+                
+                <!-- 現在時刻線 -->
+                <div id="currentTimeLine" class="absolute w-full border-t-2 border-red-500 z-20 pointer-events-none hidden shadow-[0_1px_3px_rgba(239,68,68,0.5)]" style="top: 0;">
+                    <div class="absolute right-0 -top-3.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-l shadow-sm flex items-center">
+                        <div class="w-1.5 h-1.5 bg-white rounded-full animate-pulse mr-1"></div>
+                        NOW
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- モーダル群 (背景ブラー効果を追加) -->
+    <!-- 編集モーダル -->
+    <div id="editModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-[400px] p-6 fade-in border border-slate-100">
+            <h3 class="text-lg font-bold mb-4 text-slate-800 flex items-center"><i class="fa-solid fa-pen text-blue-500 mr-2"></i> タスク編集</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">タスク名</label>
+                    <input type="text" id="editTitle" class="block w-full border border-slate-300 rounded-lg shadow-sm p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">開始</label>
+                        <input type="time" id="editStart" class="block w-full border border-slate-300 rounded-lg shadow-sm p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">終了</label>
+                        <input type="time" id="editEnd" class="block w-full border border-slate-300 rounded-lg shadow-sm p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">種類</label>
+                    <select id="editType" class="block w-full border border-slate-300 rounded-lg shadow-sm p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition bg-white">
+                        <option value="MTG">MTG</option>
+                        <option value="Task">タスク</option>
+                        <option value="Buffer">バッファ</option>
+                    </select>
+                </div>
+                <!-- ラベル選択エリア -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">タグ</label>
+                    <div id="editLabelsContainer" class="flex flex-wrap gap-2 p-3 border border-slate-200 rounded-lg bg-slate-50 min-h-[44px]">
+                        <!-- JSでチェックボックスを生成 -->
+                    </div>
+                </div>
+            </div>
+            <div class="mt-8 flex justify-between items-center border-t border-slate-100 pt-4">
+                <button onclick="app.deleteCurrentTask()" class="text-red-500 hover:text-red-700 hover:bg-red-50 text-sm font-bold px-3 py-2 rounded-lg transition"><i class="fa-regular fa-trash-can mr-1"></i> 削除</button>
+                <div class="flex gap-2">
+                    <button onclick="app.closeModal('editModal')" class="bg-white border border-slate-300 text-slate-700 font-bold px-4 py-2 rounded-lg hover:bg-slate-50 transition">キャンセル</button>
+                    <button onclick="app.saveTaskEdit()" class="bg-blue-600 text-white font-bold px-6 py-2 rounded-lg hover:bg-blue-700 shadow-md shadow-blue-500/30 transition">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 他日付へのコピーモーダル -->
+    <div id="copyModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-80 p-6 fade-in">
+            <h3 class="text-lg font-bold mb-4 text-slate-800"><i class="fa-regular fa-copy text-blue-500 mr-2"></i> 日付へコピー</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">コピー先の日付</label>
+                    <input type="date" id="copyTargetDate" class="w-full border border-slate-300 rounded-lg shadow-sm p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">コピー対象</label>
+                    <div class="space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <label class="flex items-center text-sm cursor-pointer font-medium text-slate-700 hover:text-blue-600 transition">
+                            <input type="radio" name="copyType" value="plan" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 mr-2" checked>
+                            予定 (Plan) のみ
+                        </label>
+                        <label class="flex items-center text-sm cursor-pointer font-medium text-slate-700 hover:text-blue-600 transition">
+                            <input type="radio" name="copyType" value="all" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 mr-2">
+                            予定と実績 すべて
+                        </label>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500"><i class="fa-solid fa-circle-info mr-1"></i>コピー先の既存データに追加されます。</p>
+            </div>
+            <div class="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+                <button onclick="app.closeModal('copyModal')" class="bg-white border border-slate-300 text-slate-700 font-bold px-4 py-2 rounded-lg hover:bg-slate-50 transition">キャンセル</button>
+                <button onclick="app.executeCopy()" class="bg-blue-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-blue-700 shadow-md shadow-blue-500/30 transition">実行</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ラベル管理モーダル -->
+    <div id="labelModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-[360px] p-6 fade-in">
+            <h3 class="text-lg font-bold mb-4 text-slate-800"><i class="fa-solid fa-tags text-blue-500 mr-2"></i> タグ管理</h3>
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="newLabelInput" placeholder="新しいタグ名を入力..." class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <button onclick="app.addLabel()" class="bg-slate-800 text-white px-4 py-2 font-bold rounded-lg text-sm hover:bg-slate-900 shadow-sm transition">追加</button>
+            </div>
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">登録済みタグ</div>
+            <div id="labelList" class="space-y-2 max-h-48 overflow-y-auto border border-slate-200 p-2 rounded-lg bg-slate-50">
+                <!-- JSでリスト生成 -->
+            </div>
+            <div class="mt-6 flex justify-end border-t border-slate-100 pt-4">
+                <button onclick="app.closeModal('labelModal')" class="bg-white border border-slate-300 text-slate-700 font-bold px-6 py-2 rounded-lg hover:bg-slate-50 transition">完了</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 日報エクスポート結果モーダル -->
+    <div id="exportModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-[900px] h-[85vh] flex flex-col p-6 fade-in">
+            <h3 class="text-xl font-bold mb-4 text-slate-800 border-b pb-3"><i class="fa-solid fa-pen-to-square text-blue-600 mr-2"></i> 日報作成</h3>
+            
+            <div class="flex-1 flex gap-6 overflow-hidden mb-4">
+                <!-- 入力エリア -->
+                <div class="w-1/2 flex flex-col gap-4 overflow-y-auto pr-3 custom-scrollbar">
+                    <div class="bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+                        <label class="block text-sm font-bold text-blue-900 mb-1">■わかったこと</label>
+                        <p class="text-xs text-blue-700 mb-2 opacity-80">学び・気づき・疑問・モヤモヤ</p>
+                        <textarea id="reportLearned" class="w-full border-slate-300 rounded-md p-2.5 text-sm h-24 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm outline-none resize-y" oninput="app.updateExportPreview()"></textarea>
+                    </div>
+                    <div class="bg-green-50/50 p-4 rounded-lg border border-green-100">
+                        <label class="block text-sm font-bold text-green-900 mb-1">■つぎやること</label>
+                        <p class="text-xs text-green-700 mb-2 opacity-80">わかったことをどう活かすか、成長・改善に向けた行動</p>
+                        <textarea id="reportNext" class="w-full border-slate-300 rounded-md p-2.5 text-sm h-24 focus:ring-2 focus:ring-green-500 focus:border-green-500 shadow-sm outline-none resize-y" oninput="app.updateExportPreview()"></textarea>
+                    </div>
+                    <div class="bg-pink-50/50 p-4 rounded-lg border border-pink-100">
+                        <label class="block text-sm font-bold text-pink-900 mb-1">■感謝を伝えたいこと</label>
+                        <p class="text-xs text-pink-700 mb-2 opacity-80">誰かに「ありがとう」を伝えたい際にどうぞ！</p>
+                        <textarea id="reportThanks" class="w-full border-slate-300 rounded-md p-2.5 text-sm h-24 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 shadow-sm outline-none resize-y" oninput="app.updateExportPreview()"></textarea>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <label class="block text-sm font-bold text-slate-700 mb-2">■ メモ</label>
+                        <textarea id="reportMemo" class="w-full border-slate-300 rounded-md p-2.5 text-sm h-24 focus:ring-2 focus:ring-slate-500 focus:border-slate-500 shadow-sm outline-none resize-y" oninput="app.updateExportPreview()"></textarea>
+                    </div>
+                </div>
+                
+                <!-- プレビューエリア -->
+                <div class="w-1/2 flex flex-col bg-slate-50 rounded-lg border border-slate-200 p-1">
+                    <div class="px-3 py-2 border-b border-slate-200 flex justify-between items-center bg-slate-100 rounded-t-md">
+                        <label class="text-sm font-bold text-slate-700">最終出力プレビュー</label>
+                        <span class="text-xs text-slate-500">入力内容は自動保存されます</span>
+                    </div>
+                    <textarea id="exportText" class="flex-1 w-full p-4 rounded-b-md font-mono text-sm bg-transparent outline-none resize-none" readonly></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 shrink-0 border-t pt-4">
+                <button onclick="app.closeModal('exportModal')" class="bg-white border border-slate-300 text-slate-700 font-bold px-6 py-2 rounded-lg hover:bg-slate-50 transition">閉じる</button>
+                <button onclick="app.copyToClipboard('exportText')" class="bg-slate-800 text-white font-bold px-6 py-2 rounded-lg hover:bg-slate-900 shadow-md transition flex items-center"><i class="fa-regular fa-copy mr-2"></i> クリップボードにコピー</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 集計/分析モーダル -->
+    <div id="analysisModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-[700px] max-h-[90vh] flex flex-col p-6 fade-in">
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <h3 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-chart-pie text-indigo-500 mr-2"></i> 月間集計レポート</h3>
+                <input type="month" id="analysisMonth" class="border border-slate-300 p-1.5 rounded-lg text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm" onchange="app.renderAnalysis()">
+            </div>
+            
+            <div class="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                <div class="grid grid-cols-3 gap-4 mb-8">
+                    <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-5 rounded-xl border border-blue-200 text-center shadow-sm">
+                        <div class="text-sm text-blue-700 font-bold mb-1">MTG</div>
+                        <div class="text-3xl font-black text-blue-900" id="statMtg">0h</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-green-50 to-green-100 p-5 rounded-xl border border-green-200 text-center shadow-sm">
+                        <div class="text-sm text-green-700 font-bold mb-1">Task</div>
+                        <div class="text-3xl font-black text-green-900" id="statTask">0h</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-slate-50 to-slate-100 p-5 rounded-xl border border-slate-200 text-center shadow-sm">
+                        <div class="text-sm text-slate-600 font-bold mb-1">Buffer</div>
+                        <div class="text-3xl font-black text-slate-800" id="statBuffer">0h</div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-bold text-sm text-slate-600 mb-3 flex items-center"><i class="fa-solid fa-tags mr-1"></i> タグ別集計 (実績)</h4>
+                        <div class="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th class="p-2.5 font-bold text-slate-600">タグ</th>
+                                        <th class="p-2.5 font-bold text-slate-600 text-right">時間</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="labelStatsBody" class="divide-y divide-slate-100">
+                                    <!-- JSで生成 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-sm text-slate-600 mb-3 flex items-center"><i class="fa-regular fa-calendar-check mr-1"></i> 日別稼働 (Buffer除く)</h4>
+                        <div class="border border-slate-200 rounded-lg overflow-hidden shadow-sm max-h-64 overflow-y-auto custom-scrollbar">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
+                                    <tr>
+                                        <th class="p-2.5 font-bold text-slate-600">日付</th>
+                                        <th class="p-2.5 font-bold text-slate-600 text-right">稼働計</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analysisTableBody" class="divide-y divide-slate-100">
+                                    <!-- JSで生成 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end border-t border-slate-100 pt-4">
+                <button onclick="app.closeModal('analysisModal')" class="bg-white border border-slate-300 text-slate-700 font-bold px-6 py-2 rounded-lg hover:bg-slate-50 transition">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class App {
+            constructor() {
+                // 設定値
+                this.PIXELS_PER_HOUR = 60;
+                this.GRID_SNAP_MINUTES = 15;
+                
+                // 状態
+                this.currentDateStr = this.getTodayStr();
+                this.allData = {}; 
+                this.globalSettings = { labels: [] };
+                this.currentSettings = { startHour: 9, endHour: 19 };
+                this.currentReport = { learned: '', next: '', thanks: '', memo: '' };
+                this.tasks = []; 
+                
+                // ドラッグ状態
+                this.draggedItem = null;
+                this.dragSource = null;
+                this.editingTaskId = null;
+
+                // リサイズ状態
+                this.resizingTaskId = null;
+                this.resizeStartY = 0;
+                this.resizeStartDuration = 0;
+
+                // メソッドのバインド (Eventリスナー用)
+                this.doResize = this.doResize.bind(this);
+                this.stopResize = this.stopResize.bind(this);
+
+                // DOM
+                this.scrollArea = document.getElementById('scrollArea');
+                this.timeLabels = document.getElementById('timeLabels');
+                this.timeLabelsContainer = document.getElementById('timeLabelsContainer');
+                this.gridBackground = document.getElementById('gridBackground');
+                this.datePicker = document.getElementById('datePicker');
+                this.lanes = {
+                    plan: document.querySelector('.lane-content[data-lane="plan"]'),
+                    actual: document.querySelector('.lane-content[data-lane="actual"]')
+                };
+
+                // 初期化実行
+                this.datePicker.value = this.currentDateStr;
+                this.loadAllData();
+                this.loadDate(this.currentDateStr);
+                this.initEventListeners();
+                this.startClock();
+            }
+
+            // --- 日付・データ管理 ---
+
+            getTodayStr() {
+                // ローカルタイムゾーンでの日付文字列を取得
+                const d = new Date();
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            goToToday() {
+                this.datePicker.value = this.getTodayStr();
+                this.onDateChange();
+            }
+
+            changeDate(offset) {
+                const d = new Date(this.currentDateStr);
+                d.setDate(d.getDate() + offset);
+                // タイムゾーンのズレを防ぐため組み立てる
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const newDateStr = `${year}-${month}-${day}`;
+                this.datePicker.value = newDateStr;
+                this.onDateChange();
+            }
+
+            onDateChange() {
+                this.saveCurrentDateData();
+                const newDate = this.datePicker.value;
+                if (!newDate) return;
+                this.currentDateStr = newDate;
+                this.loadDate(newDate);
+            }
+
+            loadDate(dateStr) {
+                const dayData = this.allData[dateStr] || { tasks: [], settings: { startHour: 9, endHour: 19 }, report: {} };
+                
+                this.tasks = JSON.parse(JSON.stringify(dayData.tasks));
+                
+                this.tasks.forEach(t => {
+                    if (!t.labels) t.labels = [];
+                });
+
+                this.currentSettings = { ...dayData.settings };
+                this.currentReport = { learned: '', next: '', thanks: '', memo: '', ...(dayData.report || {}) };
+
+                document.getElementById('startHour').value = this.currentSettings.startHour;
+                document.getElementById('endHour').value = this.currentSettings.endHour;
+
+                this.renderGrid();
+                this.renderTasks();
+            }
+
+            saveCurrentDateData() {
+                this.allData[this.currentDateStr] = {
+                    tasks: this.tasks,
+                    settings: this.currentSettings,
+                    report: this.currentReport
+                };
+                this.saveToLocalStorage();
+            }
+
+            saveToLocalStorage() {
+                localStorage.setItem('dailyTaskManagerFullData', JSON.stringify(this.allData));
+                localStorage.setItem('dailyTaskManagerGlobal', JSON.stringify(this.globalSettings));
+            }
+
+            loadAllData() {
+                const json = localStorage.getItem('dailyTaskManagerFullData');
+                if (json) {
+                    try {
+                        this.allData = JSON.parse(json);
+                    } catch (e) {
+                        this.allData = {};
+                    }
+                }
+                
+                const globalJson = localStorage.getItem('dailyTaskManagerGlobal');
+                if (globalJson) {
+                    try {
+                        this.globalSettings = JSON.parse(globalJson);
+                        if (!this.globalSettings.labels) this.globalSettings.labels = [];
+                    } catch (e) {
+                        this.globalSettings = { labels: [] };
+                    }
+                } else {
+                    this.globalSettings = { labels: [] };
+                }
+            }
+
+            // --- レーン内クリア ---
+            
+            clearLane(laneKey) {
+                const laneName = laneKey === 'plan' ? '予定' : '実績';
+                if(confirm(`表示中の「${laneName}」をすべて消去しますか？`)) {
+                    this.tasks = this.tasks.filter(t => t.lane !== laneKey);
+                    this.saveCurrentDateData();
+                    this.renderTasks();
+                }
+            }
+
+            // --- 他日付への一括コピー ---
+
+            openCopyModal() {
+                const d = new Date(this.currentDateStr);
+                d.setDate(d.getDate() + 1);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                document.getElementById('copyTargetDate').value = `${year}-${month}-${day}`;
+                this.openModal('copyModal');
+            }
+
+            executeCopy() {
+                const targetDate = document.getElementById('copyTargetDate').value;
+                const copyType = document.querySelector('input[name="copyType"]:checked').value; 
+                
+                if (!targetDate) return alert('コピー先の日付を指定してください。');
+                if (targetDate === this.currentDateStr) return alert('現在と同じ日付は指定できません。');
+
+                const tasksToCopy = this.tasks.filter(t => {
+                    if (copyType === 'plan') return t.lane === 'plan';
+                    return true;
+                });
+
+                if (tasksToCopy.length === 0) return alert('コピーするタスクがありません。');
+
+                let targetDayData = this.allData[targetDate];
+                if (!targetDayData) {
+                    targetDayData = { tasks: [], settings: { ...this.currentSettings }, report: {} };
+                }
+
+                const newTasks = JSON.parse(JSON.stringify(tasksToCopy));
+                newTasks.forEach(t => {
+                    t.id = Date.now().toString() + Math.random().toString(36).substring(2, 7);
+                });
+
+                targetDayData.tasks.push(...newTasks);
+                this.allData[targetDate] = targetDayData;
+                
+                this.saveToLocalStorage(); 
+                this.closeModal('copyModal');
+
+                if (confirm(`コピーが完了しました。\nコピー先の日付（${targetDate}）に移動しますか？`)) {
+                    this.datePicker.value = targetDate;
+                    this.onDateChange();
+                }
+            }
+
+            // --- ラベル管理 ---
+
+            openLabelManager() {
+                this.renderLabelList();
+                this.openModal('labelModal');
+            }
+
+            renderLabelList() {
+                const list = document.getElementById('labelList');
+                list.innerHTML = '';
+                if (this.globalSettings.labels.length === 0) {
+                    list.innerHTML = '<div class="text-xs text-slate-400 p-3 text-center">タグがありません</div>';
+                    return;
+                }
+                this.globalSettings.labels.forEach((label, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'flex justify-between items-center bg-white border border-slate-100 p-2.5 rounded-md shadow-sm text-sm font-medium';
+                    div.innerHTML = `
+                        <span class="text-slate-700">${label}</span>
+                        <button onclick="app.deleteLabel(${index})" class="text-slate-300 hover:text-red-500 hover:bg-red-50 w-6 h-6 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button>
+                    `;
+                    list.appendChild(div);
+                });
+            }
+
+            addLabel() {
+                const input = document.getElementById('newLabelInput');
+                const val = input.value.trim();
+                if (val && !this.globalSettings.labels.includes(val)) {
+                    this.globalSettings.labels.push(val);
+                    this.saveToLocalStorage();
+                    this.renderLabelList();
+                    input.value = '';
+                }
+            }
+
+            deleteLabel(index) {
+                if(confirm('このタグを削除しますか？')) {
+                    this.globalSettings.labels.splice(index, 1);
+                    this.saveToLocalStorage();
+                    this.renderLabelList();
+                }
+            }
+
+            // --- バックアップ・エクスポート ---
+
+            downloadBackup() {
+                this.saveCurrentDateData();
+                const exportData = {
+                    data: this.allData,
+                    global: this.globalSettings
+                };
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `task_manager_backup_${this.getTodayStr()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            uploadBackup(input) {
+                const file = input.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        if (confirm("現在のデータをすべて上書きして復元しますか？")) {
+                            if (imported.data) {
+                                this.allData = imported.data;
+                                this.globalSettings = imported.global || { labels: [] };
+                            } else {
+                                this.allData = imported;
+                            }
+                            this.saveToLocalStorage();
+                            this.loadDate(this.currentDateStr);
+                            alert("復元しました");
+                        }
+                    } catch (err) {
+                        alert("ファイル形式が正しくありません");
+                    }
+                    input.value = '';
+                };
+                reader.readAsText(file);
+            }
+
+            downloadCSV() {
+                this.saveCurrentDateData();
+                let csv = "Date,Lane,Type,Title,Labels,StartTime,EndTime,Duration(min)\n";
+                
+                const dates = Object.keys(this.allData).sort();
+                
+                dates.forEach(date => {
+                    const dayData = this.allData[date];
+                    if (!dayData.tasks) return;
+                    
+                    dayData.tasks.forEach(t => {
+                        const start = `${String(t.startHour).padStart(2,'0')}:${String(t.startMin).padStart(2,'0')}`;
+                        const endTotal = t.startHour * 60 + t.startMin + t.duration;
+                        const end = `${String(Math.floor(endTotal/60)).padStart(2,'0')}:${String(endTotal%60).padStart(2,'0')}`;
+                        const labels = t.labels ? t.labels.join('|') : '';
+
+                        const row = [
+                            date,
+                            t.lane === 'plan' ? '予定' : '実績',
+                            t.type,
+                            `"${t.title.replace(/"/g, '""')}"`,
+                            `"${labels}"`,
+                            start,
+                            end,
+                            t.duration
+                        ];
+                        csv += row.join(",") + "\n";
+                    });
+                });
+
+                const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `task_history_all.csv`;
+                a.click();
+            }
+
+            clearAllData() {
+                if(confirm("本当に全ての履歴データを削除しますか？")) {
+                    this.allData = {};
+                    this.tasks = [];
+                    this.globalSettings = { labels: [] };
+                    localStorage.removeItem('dailyTaskManagerFullData');
+                    localStorage.removeItem('dailyTaskManagerData');
+                    localStorage.removeItem('dailyTaskManagerGlobal');
+                    this.renderTasks();
+                    alert("削除しました");
+                }
+            }
+
+            // --- 集計レポート ---
+            
+            showAnalysis() {
+                const modal = document.getElementById('analysisModal');
+                const monthInput = document.getElementById('analysisMonth');
+                
+                if (!monthInput.value) {
+                    monthInput.value = this.currentDateStr.substring(0, 7);
+                }
+                
+                this.openModal('analysisModal');
+                this.renderAnalysis();
+            }
+
+            renderAnalysis() {
+                const targetMonth = document.getElementById('analysisMonth').value;
+                if (!targetMonth) return;
+
+                let stats = { MTG: 0, Task: 0, Buffer: 0 };
+                let dailyStats = {};
+                let labelStats = {}; 
+
+                this.saveCurrentDateData();
+
+                Object.keys(this.allData).forEach(date => {
+                    if (!date.startsWith(targetMonth)) return;
+                    
+                    const dayTasks = this.allData[date].tasks;
+                    if (!dayTasks) return;
+                    
+                    if (!dailyStats[date]) dailyStats[date] = { MTG: 0, Task: 0, total: 0 };
+
+                    dayTasks.forEach(t => {
+                        if (t.lane === 'actual') {
+                            stats[t.type] = (stats[t.type] || 0) + t.duration;
+                            if (t.type !== 'Buffer') {
+                                dailyStats[date][t.type] = (dailyStats[date][t.type] || 0) + t.duration;
+                                dailyStats[date].total += t.duration;
+                            }
+                            
+                            if (t.labels && t.labels.length > 0) {
+                                t.labels.forEach(lbl => {
+                                    labelStats[lbl] = (labelStats[lbl] || 0) + t.duration;
+                                });
+                            } else {
+                                labelStats['(No Label)'] = (labelStats['(No Label)'] || 0) + t.duration;
+                            }
+                        }
+                    });
+                });
+
+                const toHours = min => (min / 60).toFixed(1) + 'h';
+                
+                document.getElementById('statMtg').textContent = toHours(stats.MTG);
+                document.getElementById('statTask').textContent = toHours(stats.Task);
+                document.getElementById('statBuffer').textContent = toHours(stats.Buffer);
+
+                const labelBody = document.getElementById('labelStatsBody');
+                labelBody.innerHTML = '';
+                Object.entries(labelStats)
+                    .sort(([,a], [,b]) => b - a)
+                    .forEach(([label, min]) => {
+                        const tr = document.createElement('tr');
+                        tr.className = "hover:bg-slate-50 transition-colors";
+                        tr.innerHTML = `
+                            <td class="p-2.5 text-slate-700 font-medium">${label}</td>
+                            <td class="p-2.5 text-right font-mono text-slate-600">${toHours(min)}</td>
+                        `;
+                        labelBody.appendChild(tr);
+                    });
+
+                const tbody = document.getElementById('analysisTableBody');
+                tbody.innerHTML = '';
+                
+                Object.keys(dailyStats).sort().forEach(date => {
+                    const d = dailyStats[date];
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50 transition-colors";
+                    const isWeekend = new Date(date).getDay() === 0 || new Date(date).getDay() === 6;
+                    const dateClass = isWeekend ? "text-red-500 font-medium" : "text-slate-700 font-medium";
+                    
+                    tr.innerHTML = `
+                        <td class="p-2.5 ${dateClass}">${date.substring(5)}</td>
+                        <td class="p-2.5 text-slate-600">${toHours(d.MTG)}</td>
+                        <td class="p-2.5 text-slate-600">${toHours(d.Task)}</td>
+                        <td class="p-2.5 font-bold text-slate-800 text-right">${toHours(d.total)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+
+            // --- UI/レンダリング ---
+
+            updateSettings() {
+                const start = parseInt(document.getElementById('startHour').value);
+                const end = parseInt(document.getElementById('endHour').value);
+                
+                if (start >= end) {
+                    alert('開始時間は終了時間より前に設定してください。');
+                    return;
+                }
+                
+                this.currentSettings.startHour = start;
+                this.currentSettings.endHour = end;
+                this.saveCurrentDateData();
+                this.renderGrid();
+                this.renderTasks(); 
+            }
+
+            renderGrid() {
+                const { startHour, endHour } = this.currentSettings;
+                const totalHours = endHour - startHour;
+                const totalHeight = totalHours * this.PIXELS_PER_HOUR;
+                
+                this.gridBackground.style.height = `${totalHeight + 32}px`; 
+
+                this.timeLabels.innerHTML = '';
+                this.timeLabels.style.height = `${totalHeight}px`;
+                this.timeLabels.style.marginTop = '32px';
+
+                for (let h = startHour; h <= endHour; h++) {
+                    const div = document.createElement('div');
+                    div.className = 'time-label absolute w-full pr-2 text-right border-t border-transparent';
+                    div.style.top = `${(h - startHour) * this.PIXELS_PER_HOUR}px`;
+                    div.innerHTML = `<span class="w-full">${h}:00</span>`;
+                    this.timeLabels.appendChild(div);
+                }
+            }
+
+            renderTasks() {
+                this.lanes.plan.innerHTML = '';
+                this.lanes.actual.innerHTML = '';
+
+                this.tasks.forEach(task => {
+                    const taskEl = this.createTaskElement(task);
+                    if (this.lanes[task.lane]) {
+                        this.lanes[task.lane].appendChild(taskEl);
+                    }
+                });
+            }
+
+            createTaskElement(task) {
+                const el = document.createElement('div');
+                el.className = `task-box type-${task.type.toLowerCase()}`;
+                el.draggable = true;
+                el.dataset.id = task.id;
+                
+                const startHour = this.currentSettings.startHour;
+                const startMinutesFromBase = (task.startHour - startHour) * 60 + task.startMin;
+                const top = (startMinutesFromBase / 60) * this.PIXELS_PER_HOUR;
+                const height = (task.duration / 60) * this.PIXELS_PER_HOUR;
+
+                el.style.top = `${top}px`;
+                el.style.height = `${Math.max(height, 20)}px`;
+
+                const timeStr = `${this.formatTime(task.startHour, task.startMin)} - ${this.calculateEndTime(task.startHour, task.startMin, task.duration)}`;
+                
+                let labelsHtml = '';
+                if (task.labels && task.labels.length > 0) {
+                    labelsHtml = '<div class="flex flex-wrap overflow-hidden mb-0.5 mt-0.5" style="max-height: 20px;">';
+                    task.labels.forEach(lbl => {
+                        labelsHtml += `<span class="label-badge">${lbl}</span>`;
+                    });
+                    labelsHtml += '</div>';
+                }
+
+                // 時間が短すぎる(15分等)場合はレイアウトを調整
+                const isShort = task.duration <= 20;
+                const titleClass = isShort ? "font-bold truncate text-xs flex-1" : "font-bold truncate text-sm leading-tight";
+                const timeClass = isShort ? "hidden" : "text-[10px] opacity-70 truncate";
+
+                el.innerHTML = `
+                    <div class="${titleClass}">${task.title}</div>
+                    ${!isShort ? labelsHtml : ''}
+                    <div class="${timeClass}">${timeStr} ${isShort ? labelsHtml : ''}</div>
+                    <div class="resize-handle" onmousedown="app.startResize(event, '${task.id}')"></div>
+                `;
+
+                el.addEventListener('dragstart', (e) => this.handleTaskDragStart(e, task));
+                el.addEventListener('click', (e) => {
+                    // リサイズ中のクリックイベント無視
+                    if (this.resizingTaskId) return;
+                    e.stopPropagation();
+                    this.openEditModal(task.id);
+                });
+
+                return el;
+            }
+
+            // --- タスクのリサイズ機能 ---
+
+            startResize(e, taskId) {
+                e.stopPropagation();
+                e.preventDefault(); // dragstartを防ぐ
+                this.resizingTaskId = taskId;
+                this.resizeStartY = e.clientY;
+                
+                const task = this.tasks.find(t => t.id === taskId);
+                if(task) this.resizeStartDuration = task.duration;
+
+                // スクロールエリアのスクロールも考慮するため初期値を記録
+                this.resizeStartScrollY = this.scrollArea.scrollTop;
+
+                // 対象要素のdraggableを一時無効化
+                const el = document.querySelector(`.task-box[data-id="${taskId}"]`);
+                if(el) {
+                    el.draggable = false;
+                    el.style.zIndex = '50';
+                }
+
+                document.body.style.cursor = 'ns-resize';
+                document.addEventListener('mousemove', this.doResize);
+                document.addEventListener('mouseup', this.stopResize);
+            }
+
+            doResize(e) {
+                if (!this.resizingTaskId) return;
+                
+                // スクロール量の変化も考慮
+                const currentScrollY = this.scrollArea.scrollTop;
+                const scrollDiff = currentScrollY - this.resizeStartScrollY;
+                
+                const deltaY = e.clientY - this.resizeStartY + scrollDiff;
+                
+                const deltaMinutes = (deltaY / this.PIXELS_PER_HOUR) * 60;
+                
+                // 15分刻みにスナップ
+                const snappedDeltaMinutes = Math.round(deltaMinutes / this.GRID_SNAP_MINUTES) * this.GRID_SNAP_MINUTES;
+                
+                let newDuration = this.resizeStartDuration + snappedDeltaMinutes;
+                if (newDuration < 15) newDuration = 15; // 最小15分
+
+                const task = this.tasks.find(t => t.id === this.resizingTaskId);
+                if(task && task.duration !== newDuration) {
+                    task.duration = newDuration;
+                    
+                    // DOMを直接更新して滑らかに (全再描画を避ける)
+                    const el = document.querySelector(`.task-box[data-id="${this.resizingTaskId}"]`);
+                    if(el) {
+                        const newHeight = (newDuration / 60) * this.PIXELS_PER_HOUR;
+                        el.style.height = `${Math.max(newHeight, 20)}px`;
+                        
+                        // 時間テキストの更新
+                        const timeStr = `${this.formatTime(task.startHour, task.startMin)} - ${this.calculateEndTime(task.startHour, task.startMin, task.duration)}`;
+                        const timeDiv = el.querySelector('.text-\\[10px\\]');
+                        if(timeDiv) timeDiv.textContent = timeStr;
+                    }
+                }
+            }
+
+            stopResize(e) {
+                if (!this.resizingTaskId) return;
+                
+                const el = document.querySelector(`.task-box[data-id="${this.resizingTaskId}"]`);
+                if(el) {
+                    el.draggable = true;
+                    el.style.zIndex = '';
+                }
+
+                document.body.style.cursor = '';
+                document.removeEventListener('mousemove', this.doResize);
+                document.removeEventListener('mouseup', this.stopResize);
+                
+                this.saveCurrentDateData();
+                this.renderTasks(); // 最終的な状態を正しく反映
+                
+                // クリックイベントの誤発火を防ぐため少し遅延してクリア
+                setTimeout(() => {
+                    this.resizingTaskId = null;
+                }, 50);
+            }
+
+            // --- ドラッグ＆ドロップ ---
+
+            initEventListeners() {
+                document.querySelectorAll('.draggable-source').forEach(el => {
+                    el.addEventListener('dragstart', (e) => {
+                        this.dragSource = 'sidebar';
+                        this.draggedItem = { type: el.dataset.type };
+                        e.dataTransfer.effectAllowed = 'copy';
+                        
+                        // アイコンをカスタムに（任意）
+                    });
+                });
+
+                ['plan', 'actual'].forEach(laneKey => {
+                    const lane = this.lanes[laneKey];
+                    lane.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = this.dragSource === 'sidebar' ? 'copy' : 'move';
+                    });
+                    lane.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        this.handleDrop(e, laneKey);
+                    });
+                });
+
+                this.scrollArea.addEventListener('scroll', () => {
+                    this.timeLabelsContainer.scrollTop = this.scrollArea.scrollTop;
+                });
+            }
+
+            handleTaskDragStart(e, task) {
+                if(this.resizingTaskId) {
+                    e.preventDefault();
+                    return;
+                }
+                this.dragSource = 'lane';
+                this.draggedItem = task;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', JSON.stringify(task));
+                setTimeout(() => e.target.classList.add('dragging'), 0);
+            }
+
+            handleDrop(e, targetLane) {
+                const rect = this.lanes[targetLane].getBoundingClientRect();
+                const clientY = e.clientY;
+                const relativeY = clientY - rect.top; 
+                let minutesFromStart = (relativeY / this.PIXELS_PER_HOUR) * 60;
+                minutesFromStart = Math.round(minutesFromStart / this.GRID_SNAP_MINUTES) * this.GRID_SNAP_MINUTES;
+
+                const startHour = this.currentSettings.startHour;
+                const endHour = this.currentSettings.endHour;
+
+                let totalMinutes = (startHour * 60) + minutesFromStart;
+                let h = Math.floor(totalMinutes / 60);
+                let m = totalMinutes % 60;
+
+                if (h < startHour) { h = startHour; m = 0; }
+                if (h >= endHour) { h = endHour - 1; m = 45; }
+
+                if (this.dragSource === 'sidebar') {
+                    const newTask = {
+                        id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
+                        title: this.draggedItem.type,
+                        type: this.draggedItem.type,
+                        startHour: h,
+                        startMin: m,
+                        duration: 30, // 30分
+                        lane: targetLane,
+                        labels: []
+                    };
+                    this.tasks.push(newTask);
+                } else if (this.dragSource === 'lane') {
+                    const task = this.tasks.find(t => t.id === this.draggedItem.id);
+                    if (task) {
+                        if (e.ctrlKey || (task.lane === 'plan' && targetLane === 'actual')) {
+                             if (task.lane === targetLane && !e.ctrlKey) {
+                                 task.startHour = h;
+                                 task.startMin = m;
+                             } else {
+                                 const newTask = {
+                                     ...task,
+                                     id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
+                                     lane: targetLane,
+                                     startHour: h,
+                                     startMin: m,
+                                     labels: [...(task.labels || [])]
+                                 };
+                                 this.tasks.push(newTask);
+                             }
+                        } else {
+                            task.lane = targetLane;
+                            task.startHour = h;
+                            task.startMin = m;
+                        }
+                    }
+                    document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+                }
+
+                this.saveCurrentDateData();
+                this.renderTasks();
+                this.dragSource = null;
+                this.draggedItem = null;
+            }
+
+            // --- 編集・削除 ---
+
+            openEditModal(id) {
+                const task = this.tasks.find(t => t.id === id);
+                if (!task) return;
+                this.editingTaskId = id;
+                document.getElementById('editTitle').value = task.title;
+                document.getElementById('editType').value = task.type;
+                
+                const startStr = `${String(task.startHour).padStart(2, '0')}:${String(task.startMin).padStart(2, '0')}`;
+                const endTotalMin = (task.startHour * 60) + task.startMin + task.duration;
+                const endH = Math.floor(endTotalMin / 60);
+                const endM = endTotalMin % 60;
+                const endStr = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+
+                document.getElementById('editStart').value = startStr;
+                document.getElementById('editEnd').value = endStr;
+
+                const container = document.getElementById('editLabelsContainer');
+                container.innerHTML = '';
+                if (this.globalSettings.labels.length === 0) {
+                    container.innerHTML = '<span class="text-xs text-slate-400">タグがありません。ヘッダーの「タグ」ボタンから作成してください。</span>';
+                } else {
+                    this.globalSettings.labels.forEach(label => {
+                        const isChecked = task.labels && task.labels.includes(label);
+                        const labelEl = document.createElement('label');
+                        labelEl.className = 'inline-flex items-center text-sm cursor-pointer hover:bg-white px-2.5 py-1.5 rounded-md border border-transparent hover:border-slate-300 transition-colors font-medium text-slate-700';
+                        labelEl.innerHTML = `
+                            <input type="checkbox" value="${label}" class="w-4 h-4 text-blue-600 rounded border-slate-300 mr-2 focus:ring-blue-500" ${isChecked ? 'checked' : ''}>
+                            ${label}
+                        `;
+                        container.appendChild(labelEl);
+                    });
+                }
+
+                this.openModal('editModal');
+                
+                // フォーカスをタイトルに当てる
+                setTimeout(() => {
+                    document.getElementById('editTitle').focus();
+                    document.getElementById('editTitle').select();
+                }, 100);
+            }
+
+            saveTaskEdit() {
+                if (!this.editingTaskId) return;
+                const title = document.getElementById('editTitle').value;
+                const type = document.getElementById('editType').value;
+                const startVal = document.getElementById('editStart').value;
+                const endVal = document.getElementById('editEnd').value;
+                
+                const checkedLabels = [];
+                document.querySelectorAll('#editLabelsContainer input[type="checkbox"]:checked').forEach(cb => {
+                    checkedLabels.push(cb.value);
+                });
+
+                if (!startVal || !endVal) return alert('時間を入力してください');
+
+                const [sh, sm] = startVal.split(':').map(Number);
+                const [eh, em] = endVal.split(':').map(Number);
+                const startTotal = sh * 60 + sm;
+                const endTotal = eh * 60 + em;
+                let duration = endTotal - startTotal;
+                if (duration <= 0) return alert('終了時間は開始時間より後にしてください');
+
+                const taskIndex = this.tasks.findIndex(t => t.id === this.editingTaskId);
+                if (taskIndex !== -1) {
+                    this.tasks[taskIndex].title = title;
+                    this.tasks[taskIndex].type = type;
+                    this.tasks[taskIndex].startHour = sh;
+                    this.tasks[taskIndex].startMin = sm;
+                    this.tasks[taskIndex].duration = duration;
+                    this.tasks[taskIndex].labels = checkedLabels;
+                }
+                this.saveCurrentDateData();
+                this.renderTasks();
+                this.closeModal('editModal');
+            }
+
+            deleteCurrentTask() {
+                if (!this.editingTaskId) return;
+                this.tasks = this.tasks.filter(t => t.id !== this.editingTaskId);
+                this.saveCurrentDateData();
+                this.renderTasks();
+                this.closeModal('editModal');
+            }
+
+            // --- その他 ---
+
+            exportDailyReport() {
+                const actualTasks = this.tasks
+                    .filter(t => t.lane === 'actual')
+                    .sort((a, b) => (a.startHour * 60 + a.startMin) - (b.startHour * 60 + b.startMin));
+
+                if (actualTasks.length === 0) return alert('実績データがありません。');
+
+                document.getElementById('reportLearned').value = this.currentReport.learned || '';
+                document.getElementById('reportNext').value = this.currentReport.next || '';
+                document.getElementById('reportThanks').value = this.currentReport.thanks || '';
+                document.getElementById('reportMemo').value = this.currentReport.memo || '';
+
+                this.updateExportPreview();
+                this.openModal('exportModal');
+            }
+
+            updateExportPreview() {
+                const actualTasks = this.tasks
+                    .filter(t => t.lane === 'actual')
+                    .sort((a, b) => (a.startHour * 60 + a.startMin) - (b.startHour * 60 + b.startMin));
+
+                let tasksText = "";
+                let totalMinutes = 0;
+
+                actualTasks.forEach(t => {
+                    const start = `${String(t.startHour).padStart(2, '0')}:${String(t.startMin).padStart(2, '0')}`;
+                    const endTotal = t.startHour * 60 + t.startMin + t.duration;
+                    const end = `${String(Math.floor(endTotal / 60)).padStart(2, '0')}:${String(endTotal % 60).padStart(2, '0')}`;
+                    
+                    let labelStr = '';
+                    if (t.labels && t.labels.length > 0) {
+                        labelStr = ' ' + t.labels.map(l => `[${l}]`).join('');
+                    }
+
+                    tasksText += `${start} - ${end} [${t.type}] ${t.title}${labelStr} (${t.duration}min)\n`;
+                    if (t.type !== 'Buffer') totalMinutes += t.duration;
+                });
+
+                tasksText += `\n(合計稼働時間: ${Math.floor(totalMinutes / 60)}時間 ${totalMinutes % 60}分)`;
+
+                const learned = document.getElementById('reportLearned').value;
+                const next = document.getElementById('reportNext').value;
+                const thanks = document.getElementById('reportThanks').value;
+                const memo = document.getElementById('reportMemo').value;
+
+                const previewText = `■今日やったこと
+　達成したこと、挑戦したこと
+----------------------------------------------
+${tasksText}
+
+■わかったこと
+　学び・気づき・疑問・モヤモヤ
+----------------------------------------------
+${learned}
+
+■つぎやること
+　わかったことをどう活かすか、成長・改善に向けた行動
+----------------------------------------------
+${next}
+
+■感謝を伝えたいこと
+　誰かに「ありがとう」を伝えたい際にどうぞ！
+----------------------------------------------
+${thanks}
+
+■ メモ
+----------------------------------------------
+${memo}`;
+
+                document.getElementById('exportText').value = previewText;
+
+                this.currentReport.learned = learned;
+                this.currentReport.next = next;
+                this.currentReport.thanks = thanks;
+                this.currentReport.memo = memo;
+                this.saveCurrentDateData();
+            }
+
+            copyToClipboard(elementId) {
+                const copyText = document.getElementById(elementId);
+                copyText.select();
+                document.execCommand("copy");
+                alert("クリップボードにコピーしました");
+            }
+
+            openModal(id) {
+                const m = document.getElementById(id);
+                m.classList.remove('hidden');
+                m.classList.add('flex');
+            }
+            closeModal(id) {
+                const m = document.getElementById(id);
+                m.classList.add('hidden');
+                m.classList.remove('flex');
+                if(id === 'editModal') this.editingTaskId = null;
+            }
+
+            formatTime(h, m) {
+                return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+            }
+            calculateEndTime(h, m, duration) {
+                const total = h * 60 + m + duration;
+                return this.formatTime(Math.floor(total / 60), total % 60);
+            }
+
+            startClock() {
+                const updateLine = () => {
+                    const now = new Date();
+                    const todayStr = this.getTodayStr();
+                    if (this.currentDateStr !== todayStr) {
+                         document.getElementById('currentTimeLine').classList.add('hidden');
+                         return;
+                    }
+
+                    const currentH = now.getHours();
+                    const currentM = now.getMinutes();
+                    const startHour = this.currentSettings.startHour;
+                    const endHour = this.currentSettings.endHour;
+
+                    if (currentH >= startHour && currentH < endHour) {
+                        const minFromStart = (currentH - startHour) * 60 + currentM;
+                        const top = (minFromStart / 60) * this.PIXELS_PER_HOUR + 32;
+                        const line = document.getElementById('currentTimeLine');
+                        line.style.top = `${top}px`;
+                        line.classList.remove('hidden');
+                    } else {
+                        document.getElementById('currentTimeLine').classList.add('hidden');
+                    }
+                };
+                updateLine();
+                setInterval(updateLine, 60000); // 1分毎
+            }
+        }
+
+        const app = new App();
+    </script>
+</body>
+</html>
