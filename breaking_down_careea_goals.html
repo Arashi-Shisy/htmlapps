@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>キャリア・ギャップ分析キャンバス</title>
+    
+    <!-- Tailwind CSS (スタイリング用) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel (ブラウザ上でJSXを変換するため) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- カスタムスタイル -->
+    <style>
+        .bg-grid {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, #f1f5f9 1px, transparent 1px),
+                linear-gradient(to bottom, #f1f5f9 1px, transparent 1px);
+        }
+        /* スクロールバーのカスタマイズ */
+        ::-webkit-scrollbar { width: 12px; height: 12px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; border: 3px solid #f8fafc; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        body { margin: 0; padding: 0; overflow: hidden; }
+        
+        /* カスタムのフォーカスリングをなめらかに */
+        textarea { transition: border-color 0.2s, box-shadow 0.2s; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useCallback, useEffect, useRef } = React;
+
+        // --- アイコンコンポーネント ---
+        const Icon = ({ className, children }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+        const Plus = ({className}) => <Icon className={className}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></Icon>;
+        const Trash2 = ({className}) => <Icon className={className}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></Icon>;
+        const Layers = ({className}) => <Icon className={className}><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 12 12 17 22 12"></polyline><polyline points="2 17 12 22 22 17"></polyline></Icon>;
+        const Target = ({className}) => <Icon className={className}><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></Icon>;
+        const ZoomIn = ({className}) => <Icon className={className}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></Icon>;
+        const ZoomOut = ({className}) => <Icon className={className}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></Icon>;
+        const RotateCcw = ({className}) => <Icon className={className}><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></Icon>;
+        const Route = ({className}) => <Icon className={className}><circle cx="6" cy="19" r="3"></circle><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"></path><circle cx="18" cy="5" r="3"></circle></Icon>;
+        // 新規追加アイコン
+        const ChevronRight = ({className}) => <Icon className={className}><polyline points="9 18 15 12 9 6"></polyline></Icon>;
+        const ChevronLeft = ({className}) => <Icon className={className}><polyline points="15 18 9 12 15 6"></polyline></Icon>;
+        const CheckCircle = ({className}) => <Icon className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></Icon>;
+        const RotateCw = ({className}) => <Icon className={className}><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></Icon>;
+        const RefreshCcw = ({className}) => <Icon className={className}><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></Icon>;
+
+        // ランダムID生成
+        const generateId = () => Math.random().toString(36).substr(2, 9);
+
+        // ローカルストレージキー
+        const STORAGE_KEY = 'career_gap_canvas_data_v2';
+
+        // 初期データ（クリア時にも使用）
+        const createInitialTree = () => ({
+            id: generateId(),
+            leftText: '現在は一般のWebエンジニア。\n目の前のタスクをこなすことで精一杯で、技術的な専門性が伸び悩んでいる。',
+            rightText: '3年後：フロントエンドのテックリード。\nチームの技術選定を担い、後進の育成も行っている状態。',
+            children: [
+                { id: generateId(), leftText: '体系的に新しい技術を学ぶ時間を確保できていない', rightText: 'モダンなアーキテクチャ設計の経験を積む', children: [] },
+                { id: generateId(), leftText: '要件定義など上流工程に関わる機会がない', rightText: 'PdMやデザイナーとの折衝スキルを身につける', children: [] }
+            ]
+        });
+
+        // --- 自動高さ調整テキストエリア ---
+        const AutoResizeTextarea = ({ value, onChange, placeholder, className }) => {
+            const textareaRef = useRef(null);
+
+            // 値が変わるたびに高さを再計算
+            useEffect(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.style.height = 'auto'; // 一旦autoにして高さをリセット
+                    textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'; // 内容に合わせた高さを設定
+                }
+            }, [value]);
+
+            return (
+                <textarea
+                    ref={textareaRef}
+                    value={value}
+                    onChange={onChange}
+                    placeholder={placeholder}
+                    className={`resize-none overflow-hidden outline-none w-full ${className}`}
+                    rows={2} // 最低行数
+                />
+            );
+        };
+
+        // --- 個別の入力ボックス (左・右共通) ---
+        const NodeBox = ({ side, node, level, isRemovable, onUpdate, onRemove, onAddSibling }) => {
+            const isLeft = side === 'left';
+            const isRoot = level === 1;
+            const displayLevel = level - 1;
+            const text = isLeft ? node.leftText : node.rightText;
+            
+            // テーマカラー設定をより洗練
+            const theme = isLeft
+                ? { border: 'border-slate-300 focus-within:border-slate-400 focus-within:ring-slate-400/20', bg: 'bg-white', headerBg: 'bg-slate-100 text-slate-700', rootBorder: 'border-slate-400 border-2', rootBg: 'bg-slate-50', rootHeader: 'bg-slate-200 text-slate-800' }
+                : { border: 'border-amber-300 focus-within:border-amber-400 focus-within:ring-amber-400/20', bg: 'bg-white', headerBg: 'bg-amber-50 text-amber-700', rootBorder: 'border-amber-400 border-2', rootBg: 'bg-amber-50/40', rootHeader: 'bg-amber-100 text-amber-800' };
+
+            return (
+                <div className="relative group/node h-full">
+                    <div className={`w-72 h-full flex flex-col rounded-xl shadow-sm transition-all focus-within:ring-4 overflow-hidden ${isRoot ? `${theme.rootBorder} ${theme.rootBg}` : `border ${theme.border} ${theme.bg}`}`}>
+                        
+                        {/* 削除ボタン */}
+                        {isRemovable && (
+                        <button
+                            onClick={() => onRemove(node.id)}
+                            className={`absolute -top-3 ${isLeft ? '-left-3' : '-right-3'} w-7 h-7 bg-white text-red-500 border border-red-200 rounded-full flex items-center justify-center opacity-0 group-hover/node:opacity-100 hover:bg-red-50 hover:text-red-600 transition-all shadow-md z-20 hover:scale-110`}
+                            title="このペアを削除"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                        )}
+
+                        {/* ヘッダーラベル */}
+                        <div className={`px-4 py-2 border-b rounded-t-xl text-xs font-bold flex items-center justify-center ${isRoot ? theme.rootHeader : theme.headerBg}`}>
+                        {isRoot 
+                            ? (isLeft ? '現在の自分 (第0階層)' : '理想のキャリア (第0階層)') 
+                            : (isLeft ? `課題要因 (第${displayLevel}階層)` : `具体策・要件 (第${displayLevel}階層)`)}
+                        </div>
+
+                        {/* テキスト入力 (自動リサイズ対応) */}
+                        <div className="flex-1 p-4 bg-transparent flex flex-col justify-start">
+                            <AutoResizeTextarea
+                                className="text-sm text-gray-800 leading-relaxed bg-transparent"
+                                placeholder={isRoot 
+                                    ? (isLeft ? '現在の役割、不満、課題' : '3〜5年後の理想のポジション') 
+                                    : (isLeft ? 'なぜその課題がある？原因は？' : 'それを実現するために必要なことは？')}
+                                value={text}
+                                onChange={(e) => onUpdate(node.id, side, e.target.value)}
+                            />
+                        </div>
+
+                        {/* ボックス下部に常に表示される「兄弟を追加」ボタン */}
+                        <button
+                            onClick={() => onAddSibling(node.id)}
+                            className={`w-full h-8 flex-none flex items-center justify-center border-t border-slate-200 text-slate-300 transition-all z-10 
+                                ${isRoot ? 'bg-slate-200/50 hover:bg-slate-300 hover:text-slate-700' : 'bg-slate-50 hover:bg-indigo-50 hover:text-indigo-500 hover:border-indigo-200'}
+                            `}
+                            title={`この下にもう一つペア(第${displayLevel}階層)を追加`}
+                        >
+                            <Plus className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 再帰的にノードペアを描画するコンポーネント ---
+        const TreeNodePair = ({ node, level, maxDepth, isOnlyRoot, onUpdate, onAddChild, onRemove, onAddSibling }) => {
+            const isRoot = level === 1;
+            const isDeepest = level === maxDepth;
+            const isRemovable = !(isRoot && isOnlyRoot);
+
+            return (
+                <div className="flex flex-row items-stretch justify-center gap-2 relative group/pair">
+                
+                {/* 左側のノード (課題) */}
+                <div className="flex flex-row items-center gap-0">
+                    <NodeBox side="left" node={node} level={level} isRemovable={isRemovable} onUpdate={onUpdate} onRemove={onRemove} onAddSibling={onAddSibling} />
+                    
+                    {/* より直感的な接続線 (左から右へ) */}
+                    {!isDeepest && (
+                        <div className="flex items-center w-8">
+                            <div className="h-0.5 w-full bg-slate-300 rounded-full"></div>
+                            <ChevronRight className="text-slate-400 w-5 h-5 -ml-3 bg-slate-50 rounded-full" />
+                        </div>
+                    )}
+                </div>
+
+                {/* --- 中央エリア (子要素コンテナ または ACTION GAP) --- */}
+                <div className="flex flex-col justify-center min-w-[180px]">
+                    {isDeepest ? (
+                    // ACTION GAP
+                    <div className="flex flex-col items-center justify-center px-4 w-full relative">
+                        <div className="absolute top-1/2 -translate-y-1/2 w-full h-1 bg-gradient-to-r from-slate-300 via-indigo-400 to-amber-300 rounded-full opacity-50 z-0"></div>
+                        <div className="flex flex-col items-center gap-1 bg-white px-5 py-3 rounded-2xl shadow-lg border border-indigo-100 z-10 transform transition-transform hover:scale-105">
+                            <Route className="w-7 h-7 text-indigo-500" />
+                            <span className="text-xs font-black tracking-widest text-indigo-900">ACTION GAP</span>
+                            <span className="text-[10px] text-slate-500 font-bold">アクションが必要</span>
+                        </div>
+                    </div>
+                    ) : (
+                    // 子要素コンテナ
+                    <div className="flex flex-col gap-6 p-6 bg-slate-100/60 rounded-3xl border-2 border-dashed border-slate-300/80 shadow-inner">
+                        {node.children.map(child => (
+                        <TreeNodePair
+                            key={child.id}
+                            node={child}
+                            level={level + 1}
+                            maxDepth={maxDepth}
+                            isOnlyRoot={false}
+                            onUpdate={onUpdate}
+                            onAddChild={onAddChild}
+                            onRemove={onRemove}
+                            onAddSibling={onAddSibling}
+                        />
+                        ))}
+                        
+                        {/* 枠の中が空の場合の大きな追加ボタン */}
+                        {node.children.length === 0 ? (
+                            <div className="flex justify-center my-2">
+                                <button
+                                    onClick={() => onAddChild(node.id)}
+                                    className="px-5 py-3 flex items-center gap-2 border-2 border-dashed border-indigo-300 bg-white/90 rounded-xl text-indigo-600 hover:border-indigo-500 hover:bg-indigo-50 hover:shadow-md transition-all font-bold text-sm"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                    第{level}階層のペアを作成
+                                </button>
+                            </div>
+                        ) : (
+                            // すでに要素がある場合は末尾に控えめなボタン
+                            <div className="flex justify-center mt-2">
+                                <button
+                                    onClick={() => onAddChild(node.id)}
+                                    className="px-4 py-2 flex items-center gap-1 border border-dashed border-slate-300 bg-white/70 rounded-full text-slate-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-sm transition-all font-bold text-xs"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    末尾にペアを追加
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    )}
+                </div>
+
+                {/* 右側のノード (解決策) */}
+                <div className="flex flex-row items-center gap-0">
+                    {/* 接続線 (右から左へ) */}
+                    {!isDeepest && (
+                        <div className="flex items-center w-8 flex-row-reverse">
+                            <div className="h-0.5 w-full bg-amber-200 rounded-full"></div>
+                            <ChevronLeft className="text-amber-400 w-5 h-5 -mr-3 bg-slate-50 rounded-full" />
+                        </div>
+                    )}
+                    <NodeBox side="right" node={node} level={level} isRemovable={isRemovable} onUpdate={onUpdate} onRemove={onRemove} onAddSibling={onAddSibling} />
+                </div>
+
+                </div>
+            );
+        };
+
+        // --- メインアプリケーション ---
+        function App() {
+            // ステートの初期化（ローカルストレージから読み込み）
+            const [trees, setTrees] = useState(() => {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    try { return JSON.parse(saved).trees; } catch (e) { console.error("データ読み込みエラー", e); }
+                }
+                return [createInitialTree()];
+            });
+            const [maxDepth, setMaxDepth] = useState(() => {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    try { return JSON.parse(saved).maxDepth; } catch (e) {}
+                }
+                return 2;
+            });
+            
+            const [zoom, setZoom] = useState(1);
+            const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving'
+            const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+            // 自動保存エフェクト
+            useEffect(() => {
+                setSaveStatus('saving');
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ trees, maxDepth }));
+                
+                // 保存完了アニメーション用タイマー
+                const timer = setTimeout(() => setSaveStatus('saved'), 600);
+                return () => clearTimeout(timer);
+            }, [trees, maxDepth]);
+
+            const handleAddDepth = () => setMaxDepth(prev => prev + 1);
+            
+            const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 1.5));
+            const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.4));
+            const handleZoomReset = () => setZoom(1);
+
+            const handleUpdateText = useCallback((id, side, text) => {
+                setTrees(prev => {
+                    const update = (node) => {
+                        if (node.id === id) return { ...node, [side === 'left' ? 'leftText' : 'rightText']: text };
+                        return { ...node, children: node.children.map(update) };
+                    };
+                    return prev.map(update);
+                });
+            }, []);
+
+            const handleAddChild = useCallback((parentId) => {
+                setTrees(prev => {
+                    const add = (node) => {
+                        if (node.id === parentId) {
+                            return { ...node, children: [...node.children, { id: generateId(), leftText: '', rightText: '', children: [] }] };
+                        }
+                        return { ...node, children: node.children.map(add) };
+                    };
+                    return prev.map(add);
+                });
+            }, []);
+
+            const handleAddSibling = useCallback((id) => {
+                setTrees(prev => {
+                    const addSibling = (nodes) => {
+                        const index = nodes.findIndex(n => n.id === id);
+                        if (index !== -1) {
+                            const newNodes = [...nodes];
+                            newNodes.splice(index + 1, 0, { id: generateId(), leftText: '', rightText: '', children: [] });
+                            return newNodes;
+                        }
+                        return nodes.map(n => ({ ...n, children: addSibling(n.children) }));
+                    };
+                    return addSibling(prev);
+                });
+            }, []);
+
+            const handleRemoveNode = useCallback((id) => {
+                setTrees(prev => {
+                    const remove = (node) => ({ ...node, children: node.children.filter(child => child.id !== id).map(remove) });
+                    return prev.filter(root => root.id !== id).map(remove);
+                });
+            }, []);
+
+            const handleAddRoot = useCallback(() => {
+                setTrees(prev => [...prev, { id: generateId(), leftText: '', rightText: '', children: [] }]);
+            }, []);
+
+            const handleClearCanvas = () => {
+                setTrees([ { id: generateId(), leftText: '', rightText: '', children: [] } ]);
+                setMaxDepth(1);
+                setShowConfirmModal(false);
+            };
+
+            return (
+                <div className="flex flex-col h-screen bg-white font-sans text-slate-800 overflow-hidden">
+                
+                {/* --- ヘッダー領域 --- */}
+                <header className="flex-none bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between z-10 shadow-sm relative">
+                    <div className="flex items-center gap-4">
+                        <div className="p-2 bg-indigo-600 text-white rounded-lg shadow-sm">
+                            <Target className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h1 className="text-lg font-bold text-gray-800 tracking-tight">キャリア・ギャップ分析キャンバス</h1>
+                            <p className="text-xs font-medium text-gray-500">
+                                両端(第0階層)を起点として、中央(ACTION GAP)に向かって課題と要件を深掘りします
+                            </p>
+                        </div>
+                        
+                        {/* オートセーブのステータス表示 */}
+                        <div className={`ml-4 flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border transition-colors ${saveStatus === 'saving' ? 'bg-slate-50 border-slate-200 text-slate-500' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
+                            {saveStatus === 'saving' ? <RotateCw className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                            <span className="font-bold tracking-wide">{saveStatus === 'saving' ? '保存中...' : '自動保存済'}</span>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                        {/* ズームコントロール */}
+                        <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200 shadow-inner">
+                            <button onClick={handleZoomOut} className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded-md transition-all shadow-sm" title="縮小"><ZoomOut className="w-4 h-4" /></button>
+                            <span className="text-xs font-bold text-slate-600 w-12 text-center select-none">{Math.round(zoom * 100)}%</span>
+                            <button onClick={handleZoomReset} className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded-md transition-all shadow-sm" title="100%に戻す"><RotateCcw className="w-3.5 h-3.5" /></button>
+                            <button onClick={handleZoomIn} className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded-md transition-all shadow-sm" title="拡大"><ZoomIn className="w-4 h-4" /></button>
+                        </div>
+
+                        <div className="w-px h-8 bg-gray-200 mx-1"></div>
+
+                        {/* 全体共通の「更に深堀り」ボタン */}
+                        <button
+                            onClick={handleAddDepth}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all font-bold text-sm"
+                        >
+                            <Layers className="w-4 h-4" />
+                            更に深堀り (階層を追加)
+                        </button>
+
+                        {/* キャンバスクリアボタン */}
+                        <button
+                            onClick={() => setShowConfirmModal(true)}
+                            className="flex items-center justify-center p-2.5 bg-white border border-slate-200 text-slate-400 rounded-xl hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all shadow-sm"
+                            title="キャンバスをクリアして最初からやり直す"
+                        >
+                            <RefreshCcw className="w-4 h-4" />
+                        </button>
+                    </div>
+                </header>
+
+                {/* --- キャンバス領域 --- */}
+                <main className="flex-1 overflow-auto bg-slate-50 bg-grid relative">
+                    <div className="min-w-fit min-h-full flex p-20">
+                        <div 
+                            className="m-auto transition-transform duration-200 ease-out origin-center"
+                            style={{ transform: `scale(${zoom})` }}
+                        >
+                            <div className="flex flex-col gap-14 items-center">
+                                {/* ツリーのルート群を描画 */}
+                                {trees.map(tree => (
+                                    <TreeNodePair
+                                        key={tree.id}
+                                        node={tree}
+                                        level={1}
+                                        maxDepth={maxDepth}
+                                        isOnlyRoot={trees.length === 1}
+                                        onUpdate={handleUpdateText}
+                                        onAddChild={handleAddChild}
+                                        onRemove={handleRemoveNode}
+                                        onAddSibling={handleAddSibling}
+                                    />
+                                ))}
+
+                                {/* 第0階層（一番外側）の追加ボタン */}
+                                <button
+                                    onClick={handleAddRoot}
+                                    className="flex items-center gap-2 px-10 py-4 border-2 border-dashed border-slate-300 bg-white/80 rounded-2xl text-slate-500 hover:border-slate-500 hover:bg-white hover:text-slate-700 transition-all font-bold shadow-sm"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                    新しい起点 (第0階層) のペアを追加する
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+
+                {/* --- クリア確認モーダル --- */}
+                {showConfirmModal && (
+                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50">
+                        <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full border border-slate-100 transform transition-all">
+                            <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-4">
+                                <Trash2 className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-xl font-bold mb-2 text-slate-800">キャンバスをクリアしますか？</h3>
+                            <p className="text-sm text-slate-500 mb-8 leading-relaxed">
+                                入力した内容がすべて消去され、初期の空白状態に戻ります。<br/>この操作は元に戻せません。
+                            </p>
+                            <div className="flex justify-end gap-3">
+                                <button onClick={() => setShowConfirmModal(false)} className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition-all">
+                                    キャンセル
+                                </button>
+                                <button onClick={handleClearCanvas} className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-all shadow-sm shadow-red-200">
+                                    すべてクリア
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
