@@ -131,7 +131,7 @@
                         )}
 
                         {/* ヘッダーラベル */}
-                        <div className={`px-4 py-2 border-b rounded-t-xl text-xs font-bold flex items-center justify-center ${isRoot ? theme.rootHeader : theme.headerBg}`}>
+                        <div className={`px-4 py-2 border-b rounded-t-xl text-sm font-bold flex items-center justify-center ${isRoot ? theme.rootHeader : theme.headerBg}`}>
                         {isRoot 
                             ? (isLeft ? '現在の自分 (第0階層)' : '理想のキャリア (第0階層)') 
                             : (isLeft ? `課題要因 (第${displayLevel}階層)` : `具体策・要件 (第${displayLevel}階層)`)}
@@ -140,7 +140,7 @@
                         {/* テキスト入力 (自動リサイズ対応) */}
                         <div className="flex-1 p-4 bg-transparent flex flex-col justify-start">
                             <AutoResizeTextarea
-                                className="text-sm text-gray-800 leading-relaxed bg-transparent"
+                                className="text-base font-medium text-gray-800 leading-relaxed bg-transparent"
                                 placeholder={isRoot 
                                     ? (isLeft ? '現在の役割、不満、課題' : '3〜5年後の理想のポジション') 
                                     : (isLeft ? 'なぜその課題がある？原因は？' : 'それを実現するために必要なことは？')}
@@ -194,8 +194,8 @@
                         <div className="absolute top-1/2 -translate-y-1/2 w-full h-1 bg-gradient-to-r from-slate-300 via-indigo-400 to-amber-300 rounded-full opacity-50 z-0"></div>
                         <div className="flex flex-col items-center gap-1 bg-white px-5 py-3 rounded-2xl shadow-lg border border-indigo-100 z-10 transform transition-transform hover:scale-105">
                             <Route className="w-7 h-7 text-indigo-500" />
-                            <span className="text-xs font-black tracking-widest text-indigo-900">ACTION GAP</span>
-                            <span className="text-[10px] text-slate-500 font-bold">アクションが必要</span>
+                            <span className="text-sm font-black tracking-widest text-indigo-900">ACTION GAP</span>
+                            <span className="text-xs text-slate-500 font-bold">アクションが必要</span>
                         </div>
                     </div>
                     ) : (
@@ -220,7 +220,7 @@
                             <div className="flex justify-center my-2">
                                 <button
                                     onClick={() => onAddChild(node.id)}
-                                    className="px-5 py-3 flex items-center gap-2 border-2 border-dashed border-indigo-300 bg-white/90 rounded-xl text-indigo-600 hover:border-indigo-500 hover:bg-indigo-50 hover:shadow-md transition-all font-bold text-sm"
+                                    className="px-5 py-3 flex items-center gap-2 border-2 border-dashed border-indigo-300 bg-white/90 rounded-xl text-indigo-600 hover:border-indigo-500 hover:bg-indigo-50 hover:shadow-md transition-all font-bold text-base"
                                 >
                                     <Plus className="w-5 h-5" />
                                     第{level}階層のペアを作成
@@ -231,7 +231,7 @@
                             <div className="flex justify-center mt-2">
                                 <button
                                     onClick={() => onAddChild(node.id)}
-                                    className="px-4 py-2 flex items-center gap-1 border border-dashed border-slate-300 bg-white/70 rounded-full text-slate-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-sm transition-all font-bold text-xs"
+                                    className="px-4 py-2 flex items-center gap-1 border border-dashed border-slate-300 bg-white/70 rounded-full text-slate-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-sm transition-all font-bold text-sm"
                                 >
                                     <Plus className="w-4 h-4" />
                                     末尾にペアを追加
@@ -357,11 +357,11 @@
                 <header className="flex-none bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between z-10 shadow-sm relative">
                     <div className="flex items-center gap-4">
                         <div className="p-2 bg-indigo-600 text-white rounded-lg shadow-sm">
-                            <Target className="w-5 h-5" />
+                            <Target className="w-6 h-6" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold text-gray-800 tracking-tight">キャリア・ギャップ分析キャンバス</h1>
-                            <p className="text-xs font-medium text-gray-500">
+                            <h1 className="text-xl font-bold text-gray-800 tracking-tight">キャリア・ギャップ分析キャンバス</h1>
+                            <p className="text-sm font-medium text-gray-500">
                                 両端(第0階層)を起点として、中央(ACTION GAP)に向かって課題と要件を深掘りします
                             </p>
                         </div>
@@ -387,9 +387,9 @@
                         {/* 全体共通の「更に深堀り」ボタン */}
                         <button
                             onClick={handleAddDepth}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all font-bold text-sm"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 hover:shadow-md transition-all font-bold text-base"
                         >
-                            <Layers className="w-4 h-4" />
+                            <Layers className="w-5 h-5" />
                             更に深堀り (階層を追加)
                         </button>
 
@@ -430,9 +430,9 @@
                                 {/* 第0階層（一番外側）の追加ボタン */}
                                 <button
                                     onClick={handleAddRoot}
-                                    className="flex items-center gap-2 px-10 py-4 border-2 border-dashed border-slate-300 bg-white/80 rounded-2xl text-slate-500 hover:border-slate-500 hover:bg-white hover:text-slate-700 transition-all font-bold shadow-sm"
+                                    className="flex items-center gap-2 px-10 py-4 border-2 border-dashed border-slate-300 bg-white/80 rounded-2xl text-slate-500 hover:border-slate-500 hover:bg-white hover:text-slate-700 transition-all font-bold text-lg shadow-sm"
                                 >
-                                    <Plus className="w-5 h-5" />
+                                    <Plus className="w-6 h-6" />
                                     新しい起点 (第0階層) のペアを追加する
                                 </button>
                             </div>
