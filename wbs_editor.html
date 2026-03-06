@@ -37,7 +37,6 @@
         
         /* ==============================
            Z-INDEX & STICKY SETTINGS
-           スクロール時の被りを防ぐための厳格な4層構造
            ============================== */
         thead th.sticky-col { position: sticky; z-index: 50 !important; background-color: #f8fafc !important; border-bottom: 2px solid #cbd5e1; }
         thead th { position: sticky; z-index: 40; border-bottom: 2px solid #cbd5e1; }
@@ -72,7 +71,7 @@
         tr.level-2 > td.sticky-col { background-color: #ffffff; font-weight: 500; }
         tr.level-3 > td.sticky-col { background-color: #ffffff; }
 
-        /* ガントチャート部分の基本背景色（透過して表示） */
+        /* ガントチャート部分の基本背景色 */
         tr.level-0 > td.gantt-cell { background-color: #f1f5f980; border-top: 1px solid #cbd5e1; }
         tr.level-1 > td.gantt-cell { background-color: #f8fafc80; }
         tr.level-2 > td.gantt-cell { background-color: #ffffff80; }
@@ -93,13 +92,11 @@
         .gantt-cell { padding: 0 !important; vertical-align: middle; }
         .bar { position: relative; border-radius: 9999px; margin: 2px 0; box-shadow: 0 1px 2px rgba(0,0,0,0.15); transition: width 0.2s; }
         .bar-task { height: 18px; background: linear-gradient(to bottom, #60a5fa, #3b82f6); border: 1px solid #2563eb; } 
-        .bar-cat { height: 6px; background: #10b981; margin-top: 14px; margin-bottom: 14px; border-radius: 3px; box-shadow: none; } /* 区分は細いバー */
+        .bar-cat { height: 6px; background: #10b981; margin-top: 14px; margin-bottom: 14px; border-radius: 3px; box-shadow: none; } 
         .bar-completed { height: 18px; background: linear-gradient(to bottom, #9ca3af, #6b7280); border: 1px solid #4b5563; }
         
         /* 入力欄のシームレス化 */
-        .seamless-input {
-            width: 100%; background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 2px 4px; outline: none; transition: all 0.2s;
-        }
+        .seamless-input { width: 100%; background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 2px 4px; outline: none; transition: all 0.2s; }
         .seamless-input:hover:not(:disabled) { border-color: #cbd5e1; background-color: rgba(255,255,255,0.5); }
         .seamless-input:focus:not(:disabled) { border-color: #3b82f6; background-color: #ffffff; box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
         
@@ -121,13 +118,28 @@
 
     <!-- ヘッダーコントロール -->
     <div class="p-3 bg-white shadow-sm flex flex-col shrink-0 z-40 gap-3 border-b border-gray-200">
-        <!-- 上段：タイトルと基本設定 -->
+        <!-- 上段：プロジェクト管理と基本設定 -->
         <div class="flex flex-wrap justify-between items-center gap-4">
-            <div class="flex items-center space-x-2">
-                <i class="fas fa-project-diagram text-blue-600 text-xl"></i>
-                <input type="text" id="project-title" onchange="updateTitle(this.value)" class="text-xl font-bold text-slate-800 seamless-input w-64 placeholder-gray-300" placeholder="プロジェクト名を入力">
+            
+            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <!-- プロジェクト切り替え -->
+                <div class="flex items-center space-x-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200 shadow-sm">
+                    <i class="fas fa-folder-open text-blue-500 ml-1"></i>
+                    <select id="project-select" onchange="switchProject(this.value)" class="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-32 sm:w-48 truncate">
+                        <!-- JSで生成 -->
+                    </select>
+                    <button onclick="createNewProject()" class="text-blue-500 hover:bg-blue-100 p-1.5 rounded transition" title="新しいプロジェクトを作成"><i class="fas fa-plus"></i></button>
+                    <button onclick="deleteCurrentProject()" class="text-red-400 hover:bg-red-100 p-1.5 rounded transition" title="現在のプロジェクトを削除"><i class="fas fa-trash"></i></button>
+                </div>
+                
+                <!-- プロジェクト名編集 -->
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-pen text-slate-400 text-sm hidden sm:block"></i>
+                    <input type="text" id="project-title" onchange="updateTitle(this.value)" class="text-lg font-bold text-slate-800 seamless-input w-48 placeholder-gray-300" placeholder="プロジェクト名を編集">
+                </div>
             </div>
-            <div class="flex items-center space-x-3 flex-wrap">
+
+            <div class="flex items-center space-x-3 flex-wrap gap-y-2">
                 <button onclick="scrollToToday()" class="text-sm bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-full hover:bg-blue-100 transition shadow-sm font-medium">
                     <i class="fas fa-bullseye mr-1"></i>今日へ
                 </button>
@@ -146,23 +158,27 @@
                 <div class="h-6 w-px bg-gray-300 hidden md:block"></div>
                 <button onclick="openHolidayModal()" class="text-gray-600 hover:text-orange-500 transition px-2 py-1"><i class="fas fa-calendar-times mr-1"></i>休日設定</button>
                 <button onclick="openBulkModal()" class="text-gray-600 hover:text-blue-500 transition px-2 py-1"><i class="fas fa-tools mr-1"></i>一括操作</button>
-                <div class="flex space-x-1">
-                    <button onclick="exportJSON()" class="bg-slate-700 text-white px-3 py-1.5 rounded-md hover:bg-slate-800 transition shadow-sm text-xs"><i class="fas fa-download mr-1"></i>保存</button>
-                    <label class="bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700 transition shadow-sm text-xs cursor-pointer">
+                
+                <!-- 保存・読込ボタン -->
+                <div class="flex shadow-sm rounded-md border border-slate-600">
+                    <button onclick="exportJSON()" class="bg-slate-700 text-white px-3 py-1.5 rounded-l-md hover:bg-slate-800 transition text-xs border-r border-slate-500" title="表示中のプロジェクトだけを保存"><i class="fas fa-file-export mr-1"></i>P保存</button>
+                    <button onclick="exportAllJSON()" class="bg-slate-700 text-white px-3 py-1.5 hover:bg-slate-800 transition text-xs border-r border-slate-500" title="全てのプロジェクトを一括でバックアップ"><i class="fas fa-boxes mr-1"></i>全バックアップ</button>
+                    <label class="bg-emerald-600 text-white px-3 py-1.5 rounded-r-md hover:bg-emerald-700 transition text-xs cursor-pointer">
                         <i class="fas fa-upload mr-1"></i>読込
                         <input type="file" id="import-file" class="hidden" accept=".json" onchange="importJSON(event)">
                     </label>
                 </div>
             </div>
         </div>
+        
         <!-- 下段：行追加とフィルタ -->
         <div class="flex flex-wrap justify-between items-center gap-4">
             <div class="flex items-center">
                 <div class="inline-flex rounded-md shadow-sm" role="group">
-                    <button onclick="addTask(0)" class="px-3 py-1 text-sm font-medium text-white bg-indigo-600 border border-indigo-600 rounded-l-lg hover:bg-indigo-700 focus:z-10 focus:ring-2 focus:ring-indigo-500"><i class="fas fa-layer-group mr-1"></i>大</button>
-                    <button onclick="addTask(1)" class="px-3 py-1 text-sm font-medium text-white bg-indigo-500 border-t border-b border-indigo-500 hover:bg-indigo-600 focus:z-10 focus:ring-2 focus:ring-indigo-400">中</button>
-                    <button onclick="addTask(2)" class="px-3 py-1 text-sm font-medium text-white bg-indigo-400 border-t border-b border-indigo-400 hover:bg-indigo-500 focus:z-10 focus:ring-2 focus:ring-indigo-300">小</button>
-                    <button onclick="addTask(3)" class="px-3 py-1 text-sm font-medium text-white bg-blue-500 border border-blue-500 rounded-r-lg hover:bg-blue-600 focus:z-10 focus:ring-2 focus:ring-blue-400"><i class="fas fa-tasks mr-1"></i>タスク追加</button>
+                    <button onclick="addTask(0)" class="px-3 py-1 text-sm font-medium text-white bg-indigo-600 border border-indigo-600 rounded-l-lg hover:bg-indigo-700"><i class="fas fa-layer-group mr-1"></i>大</button>
+                    <button onclick="addTask(1)" class="px-3 py-1 text-sm font-medium text-white bg-indigo-500 border-t border-b border-indigo-500 hover:bg-indigo-600">中</button>
+                    <button onclick="addTask(2)" class="px-3 py-1 text-sm font-medium text-white bg-indigo-400 border-t border-b border-indigo-400 hover:bg-indigo-500">小</button>
+                    <button onclick="addTask(3)" class="px-3 py-1 text-sm font-medium text-white bg-blue-500 border border-blue-500 rounded-r-lg hover:bg-blue-600"><i class="fas fa-tasks mr-1"></i>タスク追加</button>
                 </div>
                 <span class="text-xs text-gray-400 ml-3 hidden lg:block"><i class="fas fa-info-circle mr-1"></i>行を選択して追加すると直下に挿入されます</span>
             </div>
@@ -178,59 +194,53 @@
     <!-- メインテーブルエリア -->
     <div class="table-container" id="table-scroll-area">
         <table id="wbs-table">
-            <thead id="gantt-header">
-                <!-- JSで動的に生成 -->
-            </thead>
-            <tbody id="wbs-body">
-                <!-- JSで動的に生成 -->
-            </tbody>
+            <thead id="gantt-header"></thead>
+            <tbody id="wbs-body"></tbody>
         </table>
     </div>
 
     <!-- 休日設定モーダル -->
     <div id="holiday-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-96 transform transition-all">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-96">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold text-gray-800"><i class="fas fa-calendar-alt text-orange-500 mr-2"></i>休日設定</h2>
                 <button onclick="closeHolidayModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
             </div>
             <div class="mb-5">
                 <label class="block text-sm font-medium text-gray-700 mb-1">対象日付</label>
-                <input type="date" id="holiday-date" class="w-full border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500 p-2 border">
+                <input type="date" id="holiday-date" class="w-full border-gray-300 rounded-md p-2 border">
             </div>
             <div class="mb-6 flex items-center bg-gray-50 p-3 rounded-md">
-                <input type="checkbox" id="is-holiday" class="w-5 h-5 text-orange-600 rounded border-gray-300 focus:ring-orange-500 mr-3">
+                <input type="checkbox" id="is-holiday" class="w-5 h-5 text-orange-600 rounded mr-3">
                 <label for="is-holiday" class="text-sm text-gray-700 font-medium cursor-pointer">休日に設定する（非稼働日）</label>
             </div>
             <div class="flex justify-end space-x-3">
-                <button onclick="closeHolidayModal()" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">キャンセル</button>
-                <button onclick="saveHoliday()" class="px-4 py-2 bg-orange-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-orange-700">保存する</button>
+                <button onclick="closeHolidayModal()" class="px-4 py-2 border rounded-md text-sm text-gray-700 hover:bg-gray-50">キャンセル</button>
+                <button onclick="saveHoliday()" class="px-4 py-2 bg-orange-600 rounded-md text-sm text-white hover:bg-orange-700">保存する</button>
             </div>
         </div>
     </div>
 
     <!-- 一括操作モーダル -->
     <div id="bulk-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-[400px] transform transition-all">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-[400px]">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold text-gray-800"><i class="fas fa-tools text-blue-500 mr-2"></i>一括操作</h2>
                 <button onclick="closeBulkModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
             </div>
-            
             <div class="mb-5 p-4 bg-gray-50 rounded-md border border-gray-200">
                 <h3 class="font-semibold text-gray-700 mb-1">日付の一括シフト</h3>
-                <p class="text-xs text-gray-500 mb-3">すべてのタスクの開始日と終了日を、指定した日数分ずらします。（マイナスも可）</p>
+                <p class="text-xs text-gray-500 mb-3">すべてのタスクの開始日と終了日を指定日数ずらします。</p>
                 <div class="flex items-center space-x-2">
-                    <input type="number" id="shift-days" value="10" class="w-20 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 p-1.5 border text-right text-sm">
+                    <input type="number" id="shift-days" value="10" class="w-20 border p-1.5 rounded-md text-right text-sm">
                     <span class="text-sm text-gray-600">日</span>
-                    <button onclick="shiftAllDates()" class="px-4 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition ml-auto font-medium">実行</button>
+                    <button onclick="shiftAllDates()" class="px-4 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 ml-auto">実行</button>
                 </div>
             </div>
-
             <div class="mb-2 p-4 bg-gray-50 rounded-md border border-gray-200">
                 <h3 class="font-semibold text-gray-700 mb-1">ステータスのリセット</h3>
-                <p class="text-xs text-gray-500 mb-3">すべてのタスクのステータスを「未着手」に戻します。過去のWBSを再利用する際に便利です。</p>
-                <button onclick="resetAllStatuses()" class="w-full px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-md text-sm hover:bg-red-100 transition font-medium">すべて「未着手」にする</button>
+                <p class="text-xs text-gray-500 mb-3">すべてのタスクを「未着手」に戻します。</p>
+                <button onclick="resetAllStatuses()" class="w-full px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-md text-sm hover:bg-red-100 font-medium">すべて「未着手」にする</button>
             </div>
         </div>
     </div>
@@ -243,47 +253,34 @@
                 <button onclick="closeTaskModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
             </div>
             <div class="overflow-auto flex-1 border rounded-md bg-gray-50 p-1">
-                <ul id="task-modal-list" class="space-y-1">
-                    <!-- JSで動的に生成 -->
-                </ul>
+                <ul id="task-modal-list" class="space-y-1"></ul>
             </div>
         </div>
     </div>
 
     <script>
-        const STORAGE_KEY = 'wbs_app_state';
+        const PROJECTS_STORAGE_KEY = 'wbs_app_projects';
+        const LEGACY_STORAGE_KEY = 'wbs_app_state';
 
-        // --- 状態管理 (State) ---
-        let state = {
-            title: '新規プロジェクト',
-            tasks: [
-                { id: generateId(), level: 0, name: 'プロジェクトA', status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' },
-                { id: generateId(), level: 1, name: '要件定義', status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' },
-                { id: generateId(), level: 3, name: 'キックオフMTG', status: '完了', assignee: '山田', start: getToday(), end: getToday(), exclude: false, collapsed: false, deliverable: '議事録', note: '' },
-                { id: generateId(), level: 3, name: '要件ヒアリング', status: '着手中', assignee: '佐藤', start: getToday(), end: addDays(getToday(), 3), exclude: false, collapsed: false, deliverable: '要件定義書', note: '客先訪問あり' },
-                { id: generateId(), level: 1, name: '設計', status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' },
-                { id: generateId(), level: 2, name: '基本設計', status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' },
-                { id: generateId(), level: 3, name: '画面設計', status: '未着手', assignee: '鈴木', start: addDays(getToday(), 4), end: addDays(getToday(), 8), exclude: false, collapsed: false, deliverable: 'ワイヤーフレーム', note: '' }
-            ],
-            ganttStartDate: getToday(),
-            ganttDaysToShow: 60,
-            customHolidays: {},
-            selectedIndex: -1,
-            filters: { name: '', status: '', assignee: '', deliverable: '', deliverableNotEmpty: false, exclude: '', date: '' }
+        // --- プロジェクト全体の管理 ---
+        let appState = {
+            currentProjectId: '',
+            projects: []
         };
+        
+        // 現在表示中のプロジェクトへの参照
+        let state = null;
 
         // --- ユーティリティ関数 ---
         function generateId() { return Math.random().toString(36).substr(2, 9); }
         function getToday() { return new Date().toISOString().split('T')[0]; }
         function addDays(dateStr, days) {
             if (!dateStr) return '';
-            let d = new Date(dateStr);
-            d.setDate(d.getDate() + days);
+            let d = new Date(dateStr); d.setDate(d.getDate() + days);
             return d.toISOString().split('T')[0];
         }
         function getDayOfWeek(dateStr) {
-            const days = ['日', '月', '火', '水', '木', '金', '土'];
-            return days[new Date(dateStr).getDay()];
+            return ['日', '月', '火', '水', '木', '金', '土'][new Date(dateStr).getDay()];
         }
         function isHoliday(dateStr) {
             if (state.customHolidays[dateStr] !== undefined) return state.customHolidays[dateStr];
@@ -297,12 +294,87 @@
             return count;
         }
 
+        // --- プロジェクト管理機能 ---
+        function getDefaultTasks() {
+            return [
+                { id: generateId(), level: 0, name: 'プロジェクトA', status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' },
+                { id: generateId(), level: 1, name: '要件定義', status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' },
+                { id: generateId(), level: 3, name: 'キックオフMTG', status: '完了', assignee: '山田', start: getToday(), end: getToday(), exclude: false, collapsed: false, deliverable: '議事録', note: '' },
+                { id: generateId(), level: 3, name: '要件ヒアリング', status: '着手中', assignee: '佐藤', start: getToday(), end: addDays(getToday(), 3), exclude: false, collapsed: false, deliverable: '要件定義書', note: '客先訪問あり' },
+                { id: generateId(), level: 1, name: '設計', status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' },
+                { id: generateId(), level: 2, name: '基本設計', status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' },
+                { id: generateId(), level: 3, name: '画面設計', status: '未着手', assignee: '鈴木', start: addDays(getToday(), 4), end: addDays(getToday(), 8), exclude: false, collapsed: false, deliverable: 'ワイヤーフレーム', note: '' }
+            ];
+        }
+
+        function createNewProjectData(title, isEmpty = false) {
+            let p = {
+                id: generateId(),
+                title: title,
+                tasks: isEmpty ? [{ id: generateId(), level: 0, name: '新しいプロジェクト', status: '未着手', assignee: '', start: '', end: '', exclude: false, collapsed: false, deliverable: '', note: '' }] : getDefaultTasks(),
+                ganttStartDate: getToday(),
+                ganttDaysToShow: 60,
+                customHolidays: {},
+                selectedIndex: -1,
+                filters: { name: '', status: '', assignee: '', deliverable: '', deliverableNotEmpty: false, exclude: '', date: '' }
+            };
+            if (!isEmpty) {
+                let starts = p.tasks.filter(t=>t.level===3 && t.start).map(t=>t.start).sort();
+                if (starts.length > 0) p.ganttStartDate = addDays(starts[0], -2);
+            }
+            return p;
+        }
+
+        function switchProject(id) {
+            let proj = appState.projects.find(p => p.id === id);
+            if (!proj) proj = appState.projects[0];
+            
+            appState.currentProjectId = proj.id;
+            state = proj;
+            state.selectedIndex = -1; 
+            
+            // 下位互換性確保
+            if (state.ganttDaysToShow === undefined) state.ganttDaysToShow = 60;
+            if (!state.filters) state.filters = { name: '', status: '', assignee: '', deliverable: '', deliverableNotEmpty: false, exclude: '', date: '' };
+            state.tasks.forEach(t => { if (t.collapsed === undefined) t.collapsed = false; if (t.deliverable === undefined) t.deliverable = ''; if (t.note === undefined) t.note = ''; });
+            
+            renderProjectSelect();
+            render();
+            setTimeout(scrollToToday, 100);
+        }
+
+        function renderProjectSelect() {
+            const sel = document.getElementById('project-select');
+            if (sel) {
+                sel.innerHTML = appState.projects.map(p => `<option value="${p.id}">${p.title}</option>`).join('');
+                sel.value = appState.currentProjectId;
+            }
+        }
+
+        function createNewProject() {
+            const title = prompt('新しいプロジェクト名を入力してください', '新規プロジェクト');
+            if (title === null) return;
+            const p = createNewProjectData(title || '新規プロジェクト', true); 
+            appState.projects.push(p);
+            switchProject(p.id);
+        }
+
+        function deleteCurrentProject() {
+            if (appState.projects.length <= 1) {
+                alert('プロジェクトが1つしかないため削除できません。');
+                return;
+            }
+            if (!confirm(`プロジェクト「${state.title}」を削除しますか？\nこの操作は元に戻せません。`)) return;
+            
+            appState.projects = appState.projects.filter(p => p.id !== appState.currentProjectId);
+            switchProject(appState.projects[0].id);
+        }
+
         // --- 計算処理 ---
         function updateComputedValues() {
             state.tasks.forEach(t => {
                 if (t.level < 3) { t.start = ''; t.end = ''; t.status = '未着手'; t.days = 0; t._stats = { total: 0, unstarted: 0, completed: 0, exclude: 0 }; }
             });
-
             for (let i = state.tasks.length - 1; i >= 0; i--) {
                 let task = state.tasks[i];
                 if (task.level === 3) task.days = calculateDuration(task.start, task.end);
@@ -311,7 +383,6 @@
                 for (let j = i - 1; j >= 0; j--) {
                     if (state.tasks[j].level < task.level) { parentIdx = j; break; }
                 }
-
                 if (parentIdx !== -1) {
                     let parent = state.tasks[parentIdx];
                     if (!task.exclude) {
@@ -323,7 +394,6 @@
                     }
                 }
             }
-
             state.tasks.forEach(t => {
                 if (t.level < 3) {
                     t.days = calculateDuration(t.start, t.end);
@@ -407,20 +477,15 @@
                 let d = new Date(currDate);
                 let monthStr = `${d.getFullYear()}年${d.getMonth() + 1}月`;
                 let isToday = currDate === todayStr;
-                
                 let thClass = isToday ? "text-center border-b bg-yellow-50 text-yellow-800 font-bold border-yellow-300" : "text-center border-b bg-white";
                 
                 if (monthStr !== currentMonth) {
                     if (currentMonth !== '') monthsHtml += `<th colspan="${monthColspan}" class="${thClass}">${currentMonth}</th>`;
-                    currentMonth = monthStr;
-                    monthColspan = 1;
-                } else {
-                    monthColspan++;
-                }
+                    currentMonth = monthStr; monthColspan = 1;
+                } else { monthColspan++; }
 
                 let activeCount = state.tasks.filter(t => t.level === 3 && !t.exclude && t.start && t.end && currDate >= t.start && currDate <= t.end).length;
                 let hol = isHoliday(currDate);
-                
                 let bg = isToday ? 'today-header' : (hol ? 'bg-red-50 text-red-500' : 'bg-white');
                 let badge = activeCount > 0 ? `<span class="ml-1 cursor-pointer bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded-full hover:bg-blue-200 font-bold shadow-sm" onclick="openTaskModal('${currDate}')">${activeCount}</span>` : '';
 
@@ -429,16 +494,13 @@
                     <div class="text-[10px] ${isToday?'text-yellow-600 font-bold':'text-slate-400'}">${getDayOfWeek(currDate)}</div>
                     <div class="h-4 flex items-center justify-center mt-0.5">${badge}</div>
                 </th>`;
-
                 currDate = addDays(currDate, 1);
             }
             monthsHtml += `<th colspan="${monthColspan}" class="text-center border-b bg-white">${currentMonth}</th>`;
             tr1 += monthsHtml + `</tr>`;
-
             thead.innerHTML = tr1 + tr2;
         }
 
-        // ステータスに応じたクラスを返すヘルパー
         function getStatusClass(status, isCat) {
             if (isCat) return "status-cat";
             if (status === '完了') return "status-badge status-completed";
@@ -452,7 +514,6 @@
             const todayStr = getToday();
             let daysToShow = state.ganttDaysToShow || 60;
 
-            // フィルタ処理
             let f = state.filters || {};
             let hasFilter = f.name || f.status || f.assignee || f.deliverable || f.deliverableNotEmpty || f.exclude || f.date;
             let matchMap = new Array(state.tasks.length).fill(true);
@@ -467,7 +528,6 @@
                     if (f.deliverable) mDeliv = mDeliv && (t.deliverable || '').toLowerCase().includes(f.deliverable.toLowerCase());
                     let mExcl = f.exclude === '' ? true : (f.exclude === 'true' ? t.exclude === true : t.exclude === false);
                     let mDate = !f.date ? true : (t.start && t.end && !t.exclude && f.date >= t.start && f.date <= t.end);
-
                     matchMap[i] = mName && mStatus && mAssignee && mDeliv && mExcl && mDate;
                 });
                 for (let i = state.tasks.length - 1; i >= 0; i--) {
@@ -481,7 +541,6 @@
             }
 
             let hiddenLevel = 999;
-
             state.tasks.forEach((task, index) => {
                 if (hasFilter && !matchMap[index]) return;
                 if (!hasFilter) {
@@ -499,19 +558,14 @@
                 const levelColors = ['bg-slate-200 text-slate-700', 'bg-slate-100 text-slate-600', 'bg-gray-100 text-gray-500', 'bg-white text-gray-400 border border-gray-200'];
                 const levelBadge = `<span class="inline-block w-5 h-5 leading-5 text-center text-[10px] font-bold rounded mr-1.5 ${levelColors[task.level]} shadow-sm">${levelNames[task.level]}</span>`;
                 
-                const toggleIcon = isCat ? 
-                    `<button onclick="toggleCollapse(${index}, event)" class="mr-1 w-5 h-5 flex items-center justify-center rounded hover:bg-slate-200 text-slate-500 transition"><i class="fas ${task.collapsed && !hasFilter ? 'fa-chevron-right text-xs' : 'fa-chevron-down text-xs'}"></i></button>` : 
-                    `<span class="inline-block w-5 mr-1"></span>`;
+                const toggleIcon = isCat ? `<button onclick="toggleCollapse(${index}, event)" class="mr-1 w-5 h-5 flex items-center justify-center rounded hover:bg-slate-200 text-slate-500 transition"><i class="fas ${task.collapsed && !hasFilter ? 'fa-chevron-right text-xs' : 'fa-chevron-down text-xs'}"></i></button>` : `<span class="inline-block w-5 mr-1"></span>`;
 
                 let tr = document.createElement('tr');
                 tr.className = `level-${task.level} ${isSel} cursor-pointer transition-colors border-b border-slate-100`;
-                tr.draggable = true;
-                tr.setAttribute('data-index', index);
+                tr.draggable = true; tr.setAttribute('data-index', index);
                 tr.onclick = (e) => selectRow(index, e);
-                tr.addEventListener('dragstart', handleDragStart);
-                tr.addEventListener('dragover', handleDragOver);
-                tr.addEventListener('dragleave', handleDragLeave);
-                tr.addEventListener('drop', handleDrop);
+                tr.addEventListener('dragstart', handleDragStart); tr.addEventListener('dragover', handleDragOver);
+                tr.addEventListener('dragleave', handleDragLeave); tr.addEventListener('drop', handleDrop);
 
                 let html = `
                     <td class="sticky-col col-ctrl text-center">
@@ -519,73 +573,41 @@
                         <button onclick="deleteTask(${index}, event)" class="text-red-300 hover:text-red-500 hover:bg-red-50 w-6 h-6 rounded transition"><i class="fas fa-trash text-xs"></i></button>
                     </td>
                     <td class="sticky-col col-name" style="padding-left: ${indent + 0.5}rem;">
-                        <div class="flex items-center">
-                            ${toggleIcon}
-                            ${levelBadge}
-                            <input type="text" value="${task.name}" onchange="updateTask(${index}, 'name', this.value)" title="${task.name}" class="seamless-input flex-1 min-w-0 font-medium ${isCat?'text-slate-800':'text-slate-700'}">
-                        </div>
+                        <div class="flex items-center">${toggleIcon}${levelBadge}<input type="text" value="${task.name}" onchange="updateTask(${index}, 'name', this.value)" title="${task.name}" class="seamless-input flex-1 min-w-0 font-medium ${isCat?'text-slate-800':'text-slate-700'}"></div>
                     </td>
-                    <td class="sticky-col col-status text-center">
-                        <select onchange="updateTask(${index}, 'status', this.value)" class="seamless-input ${getStatusClass(task.status, isCat)}" ${disabledAttr}>
-                            <option value="未着手" ${task.status === '未着手' ? 'selected' : ''}>未着手</option>
-                            <option value="着手中" ${task.status === '着手中' ? 'selected' : ''}>着手中</option>
-                            <option value="完了" ${task.status === '完了' ? 'selected' : ''}>完了</option>
-                        </select>
-                    </td>
-                    <td class="sticky-col col-assign">
-                        <input type="text" value="${task.assignee}" onchange="updateTask(${index}, 'assignee', this.value)" class="seamless-input text-sm text-center" ${disabledAttr}>
-                    </td>
-                    <td class="sticky-col col-start">
-                        <input type="date" value="${task.start}" onchange="updateTask(${index}, 'start', this.value)" class="seamless-input text-xs text-slate-600" ${disabledAttr}>
-                    </td>
-                    <td class="sticky-col col-end">
-                        <input type="date" value="${task.end}" onchange="updateTask(${index}, 'end', this.value)" class="seamless-input text-xs text-slate-600" ${disabledAttr}>
-                    </td>
+                    <td class="sticky-col col-status text-center"><select onchange="updateTask(${index}, 'status', this.value)" class="seamless-input ${getStatusClass(task.status, isCat)}" ${disabledAttr}>
+                        <option value="未着手" ${task.status === '未着手' ? 'selected' : ''}>未着手</option><option value="着手中" ${task.status === '着手中' ? 'selected' : ''}>着手中</option><option value="完了" ${task.status === '完了' ? 'selected' : ''}>完了</option>
+                    </select></td>
+                    <td class="sticky-col col-assign"><input type="text" value="${task.assignee}" onchange="updateTask(${index}, 'assignee', this.value)" class="seamless-input text-sm text-center" ${disabledAttr}></td>
+                    <td class="sticky-col col-start"><input type="date" value="${task.start}" onchange="updateTask(${index}, 'start', this.value)" class="seamless-input text-xs text-slate-600" ${disabledAttr}></td>
+                    <td class="sticky-col col-end"><input type="date" value="${task.end}" onchange="updateTask(${index}, 'end', this.value)" class="seamless-input text-xs text-slate-600" ${disabledAttr}></td>
                     <td class="sticky-col col-days text-slate-600 font-medium">${task.days}</td>
-                    <td class="sticky-col col-excl flex justify-center items-center h-[44px]">
-                        <input type="checkbox" ${task.exclude ? 'checked' : ''} onchange="updateTask(${index}, 'exclude', this.checked)" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer">
-                    </td>
-                    <td class="sticky-col col-deliverable">
-                        <input type="text" value="${task.deliverable || ''}" title="${task.deliverable || ''}" onchange="updateTask(${index}, 'deliverable', this.value)" class="seamless-input text-sm" ${isCat ? 'disabled' : ''}>
-                    </td>
-                    <td class="sticky-col col-note">
-                        <input type="text" value="${task.note || ''}" title="${task.note || ''}" onchange="updateTask(${index}, 'note', this.value)" class="seamless-input text-sm text-slate-600">
-                    </td>
+                    <td class="sticky-col col-excl flex justify-center items-center h-[44px]"><input type="checkbox" ${task.exclude ? 'checked' : ''} onchange="updateTask(${index}, 'exclude', this.checked)" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"></td>
+                    <td class="sticky-col col-deliverable"><input type="text" value="${task.deliverable || ''}" title="${task.deliverable || ''}" onchange="updateTask(${index}, 'deliverable', this.value)" class="seamless-input text-sm" ${isCat ? 'disabled' : ''}></td>
+                    <td class="sticky-col col-note"><input type="text" value="${task.note || ''}" title="${task.note || ''}" onchange="updateTask(${index}, 'note', this.value)" class="seamless-input text-sm text-slate-600"></td>
                 `;
 
                 let currDate = state.ganttStartDate;
                 for (let d = 0; d < daysToShow; d++) {
-                    let isToday = currDate === todayStr;
-                    let hol = isHoliday(currDate);
-                    
+                    let isToday = currDate === todayStr; let hol = isHoliday(currDate);
                     let cellClass = isToday ? 'today-col' : (hol ? 'bg-slate-50' : '');
                     let inner = '';
-
                     if (task.start && task.end && currDate >= task.start && currDate <= task.end && !task.exclude) {
                         let barClass = isCat ? 'bar-cat' : (task.status === '完了' ? 'bar-completed' : 'bar-task');
-                        let roundedClass = '';
-                        if (currDate === task.start) roundedClass += ' rounded-l-full';
-                        if (currDate === task.end) roundedClass += ' rounded-r-full';
-                        
-                        // タスク名や担当者をツールチップで表示
-                        let titleText = `${task.name} (${task.start}〜${task.end})`;
-                        if(task.assignee) titleText += ` - ${task.assignee}`;
-                        
-                        inner = `<div class="bar w-full ${barClass} ${roundedClass}" title="${titleText}"></div>`;
+                        let roundedClass = (currDate === task.start ? ' rounded-l-full' : '') + (currDate === task.end ? ' rounded-r-full' : '');
+                        let titleText = `${task.name} (${task.start}〜${task.end})${task.assignee ? ` - ${task.assignee}` : ''}`;
+                        inner = `<div class="bar w-full ${barClass}${roundedClass}" title="${titleText}"></div>`;
                     }
-
                     html += `<td class="gantt-cell border-r border-slate-200 ${cellClass}">${inner}</td>`;
                     currDate = addDays(currDate, 1);
                 }
-
-                tr.innerHTML = html;
-                tbody.appendChild(tr);
+                tr.innerHTML = html; tbody.appendChild(tr);
             });
         }
 
         // --- データ操作 ---
-        function saveToLocalStorage() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-        function updateTitle(value) { state.title = value; saveToLocalStorage(); }
+        function saveToLocalStorage() { localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(appState)); }
+        function updateTitle(value) { state.title = value; renderProjectSelect(); saveToLocalStorage(); }
         function updateTask(index, field, value) { state.tasks[index][field] = value; render(); }
         function updateFilter(key, value) { state.filters[key] = value; renderBody(); saveToLocalStorage(); }
         function clearDateFilter() { document.getElementById('filter-date').value = ''; updateFilter('date', ''); }
@@ -596,8 +618,7 @@
             state.selectedIndex = index;
             const rows = document.getElementById('wbs-body').querySelectorAll('tr');
             rows.forEach(row => {
-                if (parseInt(row.getAttribute('data-index')) === index) row.classList.add('selected');
-                else row.classList.remove('selected');
+                if (parseInt(row.getAttribute('data-index')) === index) row.classList.add('selected'); else row.classList.remove('selected');
             });
         }
 
@@ -636,12 +657,10 @@
             let level = state.tasks[index].level;
             let deleteCount = 1;
             for (let i = index + 1; i < state.tasks.length; i++) {
-                if (state.tasks[i].level <= level) break;
-                deleteCount++;
+                if (state.tasks[i].level <= level) break; deleteCount++;
             }
             state.tasks.splice(index, deleteCount);
-            state.selectedIndex = -1; 
-            render();
+            state.selectedIndex = -1; render();
         }
 
         function changeGanttSetting() {
@@ -652,23 +671,13 @@
             render();
         }
 
-        // 今日へジャンプ機能
         function scrollToToday() {
-            const today = getToday();
-            const start = state.ganttStartDate;
+            const today = getToday(); const start = state.ganttStartDate;
             const diff = Math.floor((new Date(today) - new Date(start)) / (1000 * 60 * 60 * 24));
-            
-            // 今日が表示期間外の場合は、開始日を今日-2日に調整する
-            if (diff < 0 || diff >= (state.ganttDaysToShow || 60)) {
-                state.ganttStartDate = addDays(today, -2);
-                render();
-            }
-
-            // スクロール位置の計算と実行
+            if (diff < 0 || diff >= (state.ganttDaysToShow || 60)) { state.ganttStartDate = addDays(today, -2); render(); }
             setTimeout(() => {
                 const tableContainer = document.getElementById('table-scroll-area');
                 const newDiff = Math.floor((new Date(today) - new Date(state.ganttStartDate)) / (1000 * 60 * 60 * 24));
-                // 1日あたりのセル幅(約32px) × 日数。少し左に余白を持たせる
                 const scrollLeftPos = Math.max(0, newDiff * 32 - 100); 
                 tableContainer.scrollTo({ left: scrollLeftPos, behavior: 'smooth' });
             }, 50);
@@ -680,8 +689,7 @@
         function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; document.querySelectorAll('tr.drag-over').forEach(tr => tr.classList.remove('drag-over')); let tr = e.target.closest('tr'); if (tr && tr.parentNode.id === 'wbs-body') tr.classList.add('drag-over'); }
         function handleDragLeave(e) { let tr = e.target.closest('tr'); if (tr) tr.classList.remove('drag-over'); }
         function handleDrop(e) {
-            e.stopPropagation();
-            document.querySelectorAll('tr').forEach(tr => { tr.classList.remove('dragging'); tr.classList.remove('drag-over'); });
+            e.stopPropagation(); document.querySelectorAll('tr').forEach(tr => { tr.classList.remove('dragging'); tr.classList.remove('drag-over'); });
             let dropElement = e.target.closest('tr');
             if (!dropElement || dropElement.parentNode.id !== 'wbs-body') return;
             let dropIndex = parseInt(dropElement.getAttribute('data-index'));
@@ -692,8 +700,7 @@
             let draggedItems = state.tasks.splice(dragStartIndex, blockCount);
             if (dragStartIndex < dropIndex) dropIndex -= blockCount;
             state.tasks.splice(dropIndex, 0, ...draggedItems);
-            dragStartIndex = -1; state.selectedIndex = -1; 
-            render();
+            dragStartIndex = -1; state.selectedIndex = -1; render();
         }
 
         // --- モーダル ---
@@ -708,110 +715,105 @@
             const days = parseInt(document.getElementById('shift-days').value, 10);
             if (isNaN(days) || days === 0) return;
             if (!confirm(`すべてのタスクの日付を ${days > 0 ? '+' : ''}${days}日 ずらしますか？`)) return;
-
-            state.tasks.forEach(t => {
-                if (t.level === 3) {
-                    if (t.start) t.start = addDays(t.start, days);
-                    if (t.end) t.end = addDays(t.end, days);
-                }
-            });
-            // ガントチャートの表示位置も一緒にずらす
+            state.tasks.forEach(t => { if (t.level === 3) { if (t.start) t.start = addDays(t.start, days); if (t.end) t.end = addDays(t.end, days); } });
             if (state.ganttStartDate) state.ganttStartDate = addDays(state.ganttStartDate, days);
-            
-            closeBulkModal();
-            render();
+            closeBulkModal(); render();
         }
-
         function resetAllStatuses() {
             if (!confirm('すべてのタスクのステータスを「未着手」に戻しますか？\n（この操作は元に戻せません）')) return;
             state.tasks.forEach(t => { if (t.level === 3) t.status = '未着手'; });
-            closeBulkModal();
-            render();
+            closeBulkModal(); render();
         }
 
         function openTaskModal(dateStr) {
-            const modal = document.getElementById('task-modal');
-            const list = document.getElementById('task-modal-list');
-            document.getElementById('task-modal-title').innerText = `${dateStr} の進行中タスク`;
+            const list = document.getElementById('task-modal-list'); document.getElementById('task-modal-title').innerText = `${dateStr} の進行中タスク`;
             let activeTasks = state.tasks.filter(t => t.level === 3 && !t.exclude && t.start && t.end && dateStr >= t.start && dateStr <= t.end);
             list.innerHTML = activeTasks.map(t => `
                 <li class="p-3 border-b border-gray-100 flex justify-between items-center bg-white rounded shadow-sm mb-1">
-                    <div>
-                        <span class="font-bold text-gray-800">${t.name}</span>
-                        <span class="text-xs ml-3 text-gray-500"><i class="far fa-calendar-alt mr-1"></i>${t.start} 〜 ${t.end}</span>
-                    </div>
-                    <div class="flex items-center space-x-3">
-                        <span class="${getStatusClass(t.status, false)} px-2 py-0.5">${t.status}</span>
-                        <span class="text-sm font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded"><i class="far fa-user mr-1 text-gray-400"></i>${t.assignee || '未アサイン'}</span>
-                    </div>
+                    <div><span class="font-bold text-gray-800">${t.name}</span><span class="text-xs ml-3 text-gray-500"><i class="far fa-calendar-alt mr-1"></i>${t.start} 〜 ${t.end}</span></div>
+                    <div class="flex items-center space-x-3"><span class="${getStatusClass(t.status, false)} px-2 py-0.5">${t.status}</span><span class="text-sm font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded"><i class="far fa-user mr-1 text-gray-400"></i>${t.assignee || '未アサイン'}</span></div>
                 </li>
             `).join('') || '<li class="p-4 text-gray-500 text-center bg-white rounded">進行中のタスクはありません</li>';
-            modal.classList.remove('hidden');
+            document.getElementById('task-modal').classList.remove('hidden');
         }
         function closeTaskModal() { document.getElementById('task-modal').classList.add('hidden'); }
 
-        // --- JSON ---
+        // --- JSON 保存・読込 ---
+        function triggerDownload(data, filename) {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+            const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr); downloadAnchorNode.setAttribute("download", filename);
+            document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
+        }
+
         function exportJSON() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
+            const exportData = { type: 'single', project: state };
             const safeTitle = (state.title || "無題").replace(/[\\/:*?"<>|]/g, "_");
-            downloadAnchorNode.setAttribute("download", `${safeTitle}_WBS.json`);
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
+            triggerDownload(exportData, `${safeTitle}_WBS.json`);
+        }
+
+        function exportAllJSON() {
+            const exportData = { type: 'backup', appState: appState };
+            const dateStr = getToday().replace(/-/g, '');
+            triggerDownload(exportData, `WBS_All_Backup_${dateStr}.json`);
         }
 
         function importJSON(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+            const file = event.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    const importedState = JSON.parse(e.target.result);
-                    if (importedState.tasks && Array.isArray(importedState.tasks)) {
-                        if (importedState.title === undefined) importedState.title = 'WBS & ガントチャート';
-                        if (importedState.ganttDaysToShow === undefined) importedState.ganttDaysToShow = 60;
-                        if (!importedState.filters) importedState.filters = { name: '', status: '', assignee: '', deliverable: '', deliverableNotEmpty: false, exclude: '', date: '' };
-                        else {
-                            ['name','status','assignee','deliverable','exclude','date'].forEach(k => { if(importedState.filters[k]===undefined) importedState.filters[k]=''; });
-                            if(importedState.filters.deliverableNotEmpty===undefined) importedState.filters.deliverableNotEmpty=false;
+                    const importedData = JSON.parse(e.target.result);
+                    if (importedData.type === 'backup' && importedData.appState) {
+                        if(confirm('現在の全プロジェクトをバックアップデータで上書きしますか？\n（現在のデータはすべて失われます）')) {
+                            appState = importedData.appState;
+                            switchProject(appState.currentProjectId || appState.projects[0].id);
+                            alert('全プロジェクトのバックアップを復元しました。');
                         }
-                        importedState.tasks.forEach(t => { if (t.collapsed === undefined) t.collapsed = false; if (t.deliverable === undefined) t.deliverable = ''; if (t.note === undefined) t.note = ''; });
-                        state = importedState; state.selectedIndex = -1; render(); 
-                        alert('データを読み込みました。');
-                    } else alert('無効なファイルフォーマットです。');
+                    } else {
+                        // 単一プロジェクトまたは旧形式データの読み込み
+                        let projData = importedData.type === 'single' ? importedData.project : importedData;
+                        if (projData.tasks && Array.isArray(projData.tasks)) {
+                            if (projData.title === undefined) projData.title = 'インポートされたプロジェクト';
+                            projData.id = generateId(); // IDが衝突しないよう再生成
+                            appState.projects.push(projData);
+                            switchProject(projData.id);
+                            alert(`プロジェクト「${projData.title}」を新しく追加しました。`);
+                        } else { alert('無効なファイルフォーマットです。'); }
+                    }
                 } catch (err) { alert('ファイルの読み込みに失敗しました。'); }
                 event.target.value = '';
             };
             reader.readAsText(file);
         }
 
-        // 初期化
+        // 初期化処理
         window.onload = () => {
-            const savedState = localStorage.getItem(STORAGE_KEY);
-            if (savedState) {
+            const savedProjects = localStorage.getItem(PROJECTS_STORAGE_KEY);
+            const legacyState = localStorage.getItem(LEGACY_STORAGE_KEY);
+            
+            if (savedProjects) {
+                try { appState = JSON.parse(savedProjects); } 
+                catch (e) { console.error('プロジェクトの読み込みに失敗', e); }
+            } else if (legacyState) {
+                // 過去の単一プロジェクトデータからの移行処理
                 try {
-                    const parsedState = JSON.parse(savedState);
+                    let parsedState = JSON.parse(legacyState);
                     if (parsedState && parsedState.tasks) {
                         if (parsedState.title === undefined) parsedState.title = 'WBS & ガントチャート';
-                        if (parsedState.ganttDaysToShow === undefined) parsedState.ganttDaysToShow = 60;
-                        if (!parsedState.filters) parsedState.filters = { name: '', status: '', assignee: '', deliverable: '', deliverableNotEmpty: false, exclude: '', date: '' };
-                        else {
-                            ['name','status','assignee','deliverable','exclude','date'].forEach(k => { if(parsedState.filters[k]===undefined) parsedState.filters[k]=''; });
-                            if(parsedState.filters.deliverableNotEmpty===undefined) parsedState.filters.deliverableNotEmpty=false;
-                        }
-                        parsedState.tasks.forEach(t => { if (t.collapsed === undefined) t.collapsed = false; if (t.deliverable === undefined) t.deliverable = ''; if (t.note === undefined) t.note = ''; });
-                        state = parsedState; state.selectedIndex = -1; 
+                        parsedState.id = generateId();
+                        appState.projects = [parsedState];
+                        appState.currentProjectId = parsedState.id;
                     }
-                } catch (e) { console.error('ローカルストレージの読み込みに失敗', e); }
-            } else {
-                let starts = state.tasks.filter(t=>t.level===3 && t.start).map(t=>t.start).sort();
-                if (starts.length > 0) state.ganttStartDate = addDays(starts[0], -2);
+                } catch (e) { console.error('旧データの読み込みに失敗', e); }
             }
-            render();
-            // 初期表示時に今日へスクロール
-            setTimeout(scrollToToday, 200);
+            
+            // データが空の場合はデフォルトを作成
+            if (!appState.projects || appState.projects.length === 0) {
+                appState.projects = [createNewProjectData('サンプルプロジェクト', false)];
+                appState.currentProjectId = appState.projects[0].id;
+            }
+            
+            switchProject(appState.currentProjectId || appState.projects[0].id);
         };
     </script>
 </body>

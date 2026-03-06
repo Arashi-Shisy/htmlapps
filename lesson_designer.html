@@ -34,74 +34,93 @@
             Camera: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>,
             Settings: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
             X: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
-            GripVertical: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>
+            GripVertical: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>,
+            Menu: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>,
+            Database: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>,
+            Folder: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>,
+            FileText: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
         };
 
         // --- メインアプリケーション ---
         const App = () => {
-            // --- ローカルストレージ連携 ---
             const STORAGE_KEY = 'lecture_designer_save_data';
             
+            // --- データ初期化・マイグレーション ---
             const getInitialData = () => {
                 const saved = localStorage.getItem(STORAGE_KEY);
                 if (saved) {
                     try {
-                        return JSON.parse(saved);
+                        const data = JSON.parse(saved);
+                        // v2フォーマット（複数講義対応）
+                        if (data.lectures && data.activeLectureId) {
+                            return data;
+                        }
+                        // v1フォーマットからの移行
+                        if (data.lectureInfo && data.sections) {
+                            const defaultId = Date.now().toString();
+                            return {
+                                activeLectureId: defaultId,
+                                lectures: [{ id: defaultId, info: data.lectureInfo, sections: data.sections }]
+                            };
+                        }
                     } catch (e) {
                         console.error('保存データの読み込みに失敗しました', e);
                     }
                 }
-                return null;
+                // 完全初期状態
+                const defaultId = Date.now().toString();
+                return {
+                    activeLectureId: defaultId,
+                    lectures: [{ id: defaultId, info: { title: '', goal: '', totalTime: 60 }, sections: [{ id: Date.now().toString(), type: '講義', duration: 10, content: '', expectedState: '' }] }]
+                };
             };
             
             const initialData = getInitialData();
 
-            const [lectureInfo, setLectureInfo] = useState(
-                initialData?.lectureInfo || {
-                    title: '',
-                    goal: '',
-                    totalTime: 60
-                }
-            );
+            // --- ステート ---
+            const [lectures, setLectures] = useState(initialData.lectures);
+            const [activeLectureId, setActiveLectureId] = useState(initialData.activeLectureId);
             
-            const [sections, setSections] = useState(
-                initialData?.sections || [
-                    { id: Date.now().toString(), type: '講義', duration: 10, content: '', expectedState: '' }
-                ]
-            );
-
             const [isModalOpen, setIsModalOpen] = useState(false);
+            const [isDrawerOpen, setIsDrawerOpen] = useState(false);
             
-            // D&D用のステート
             const [draggedIdx, setDraggedIdx] = useState(null);
             const [dragOverIdx, setDragOverIdx] = useState(null);
-
-            useEffect(() => {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({ lectureInfo, sections }));
-            }, [lectureInfo, sections]);
-
             const [isExportingImage, setIsExportingImage] = useState(false);
-            const fileInputRef = useRef(null);
+            
+            const fileInputRefSingle = useRef(null);
+            const fileInputRefAll = useRef(null);
 
+            // --- 派生変数と更新ヘルパー ---
+            const activeLecture = lectures.find(l => l.id === activeLectureId) || lectures[0];
+            const lectureInfo = activeLecture.info;
+            const sections = activeLecture.sections;
+
+            const updateActiveLectureInfo = (newInfo) => {
+                setLectures(lectures.map(l => l.id === activeLectureId ? { ...l, info: newInfo } : l));
+            };
+
+            const updateActiveSections = (newSections) => {
+                setLectures(lectures.map(l => l.id === activeLectureId ? { ...l, sections: newSections } : l));
+            };
+
+            // 自動保存
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ activeLectureId, lectures }));
+            }, [activeLectureId, lectures]);
+
+            // --- ハンドラー ---
             const handleInfoChange = (e) => {
                 const { name, value } = e.target;
-                setLectureInfo(prev => ({ 
-                    ...prev, 
+                updateActiveLectureInfo({ 
+                    ...lectureInfo, 
                     [name]: name === 'totalTime' ? (value ? parseInt(value) : '') : value 
-                }));
+                });
             };
 
             const addSection = () => {
                 const newId = Date.now().toString();
-                setSections([...sections, {
-                    id: newId,
-                    type: '講義',
-                    duration: 10,
-                    content: '',
-                    expectedState: ''
-                }]);
-                
-                // 新しく追加した入力欄に自動でフォーカスを当てる（少し遅延させる）
+                updateActiveSections([...sections, { id: newId, type: '講義', duration: 10, content: '', expectedState: '' }]);
                 setTimeout(() => {
                     const newEl = document.getElementById(`content-${newId}`);
                     if (newEl) newEl.focus();
@@ -109,30 +128,27 @@
             };
 
             const updateSection = (id, field, value) => {
-                setSections(sections.map(sec => 
+                updateActiveSections(sections.map(sec => 
                     sec.id === id ? { ...sec, [field]: field === 'duration' ? (value ? parseInt(value) : '') : value } : sec
                 ));
             };
 
             const removeSection = (id) => {
                 if (sections.length <= 1) return;
-                setSections(sections.filter(sec => sec.id !== id));
+                updateActiveSections(sections.filter(sec => sec.id !== id));
             };
 
             // ドラッグ＆ドロップハンドラー
             const handleDragStart = (e, index) => {
                 setDraggedIdx(index);
                 e.dataTransfer.effectAllowed = 'move';
-                // Firefox対策としてダミーデータをセット
                 e.dataTransfer.setData('text/plain', index);
             };
 
             const handleDragOver = (e, index) => {
-                e.preventDefault(); // ドロップを許可
+                e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
-                if (dragOverIdx !== index) {
-                    setDragOverIdx(index);
-                }
+                if (dragOverIdx !== index) setDragOverIdx(index);
             };
 
             const handleDrop = (e, index) => {
@@ -142,12 +158,10 @@
                     setDraggedIdx(null);
                     return;
                 }
-                
                 const newSections = [...sections];
                 const draggedItem = newSections.splice(draggedIdx, 1)[0];
                 newSections.splice(index, 0, draggedItem);
-                
-                setSections(newSections);
+                updateActiveSections(newSections);
                 setDragOverIdx(null);
                 setDraggedIdx(null);
             };
@@ -157,8 +171,10 @@
                 setDraggedIdx(null);
             };
 
-            // JSONデータエクスポート
-            const exportData = () => {
+            // --- エクスポート・インポート ---
+            
+            // 【単体】現在の講義を保存
+            const exportCurrentData = () => {
                 const data = { lectureInfo, sections };
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -168,6 +184,70 @@
                 a.download = `${fileNamePrefix}_design.json`;
                 a.click();
                 URL.revokeObjectURL(url);
+            };
+
+            // 【全体】全データバックアップ
+            const exportAllData = () => {
+                const data = { activeLectureId, lectures };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const dateStr = new Date().toISOString().split('T')[0];
+                a.download = `lecture_designer_backup_${dateStr}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            // 【単体】現在の講義に読み込み（新規追加）
+            const importSingleData = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        if (data.lectureInfo && data.sections) {
+                            const newId = Date.now().toString();
+                            setLectures([...lectures, { id: newId, info: data.lectureInfo, sections: data.sections }]);
+                            setActiveLectureId(newId);
+                        } else {
+                            alert('単一講義のデータ形式ではありません。\n※全データバックアップファイルの場合は、メニューの「全データ復元」を使用してください。');
+                        }
+                    } catch (err) {
+                        alert('ファイルの読み込みに失敗しました。');
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = '';
+            };
+
+            // 【全体】全データ復元
+            const importAllData = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (!confirm('現在のすべての講義データが上書きされます。\nよろしいですか？')) {
+                    e.target.value = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        if (data.lectures && data.activeLectureId) {
+                            setLectures(data.lectures);
+                            setActiveLectureId(data.activeLectureId);
+                            setIsDrawerOpen(false);
+                            alert('データを復元しました。');
+                        } else {
+                            alert('バックアップデータの形式が正しくありません。');
+                        }
+                    } catch (err) {
+                        alert('ファイルの読み込みに失敗しました。');
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = '';
             };
 
             // 画像エクスポート
@@ -198,42 +278,99 @@
                 }
             };
 
-            const importData = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    try {
-                        const data = JSON.parse(event.target.result);
-                        if (data.lectureInfo && data.sections) {
-                            setLectureInfo(data.lectureInfo);
-                            setSections(data.sections);
-                        } else {
-                            alert('ファイルの形式が正しくありません。');
-                        }
-                    } catch (err) {
-                        alert('ファイルの読み込みに失敗しました。');
-                    }
-                };
-                reader.readAsText(file);
-                e.target.value = '';
-            };
-
             const totalCurrentTime = sections.reduce((sum, sec) => sum + (parseInt(sec.duration) || 0), 0);
             const isOverTime = totalCurrentTime > (lectureInfo.totalTime || 0);
 
             return (
                 <div className="min-h-screen font-sans pb-20 text-gray-800">
-                    {/* ヘッダー */}
+                    
+                    {/* --- サイドバードロワー --- */}
+                    {isDrawerOpen && (
+                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] transition-opacity" onClick={() => setIsDrawerOpen(false)}></div>
+                    )}
+                    <div className={`fixed inset-y-0 left-0 w-80 bg-slate-800 text-white shadow-2xl z-[110] transform transition-transform duration-300 ease-in-out flex flex-col ${isDrawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                        <div className="p-5 border-b border-slate-700 flex justify-between items-center">
+                            <h2 className="text-lg font-bold flex items-center gap-2">
+                                <Icons.Folder className="w-5 h-5 text-indigo-400" />
+                                講義一覧
+                            </h2>
+                            <button onClick={() => setIsDrawerOpen(false)} className="text-slate-400 hover:text-white p-1 rounded-full hover:bg-slate-700 transition-colors">
+                                <Icons.X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar">
+                            {lectures.map(l => (
+                                <div key={l.id} 
+                                    className={`group flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${activeLectureId === l.id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+                                    onClick={() => { setActiveLectureId(l.id); setIsDrawerOpen(false); }}
+                                >
+                                    <div className="flex items-center gap-3 overflow-hidden">
+                                        <Icons.FileText className={`w-4 h-4 shrink-0 ${activeLectureId === l.id ? 'text-indigo-200' : 'text-slate-500'}`} />
+                                        <span className="truncate text-sm font-medium">{l.info.title || '名称未設定'}</span>
+                                    </div>
+                                    {lectures.length > 1 && (
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if(confirm(`「${l.info.title || '名称未設定'}」を削除しますか？`)) {
+                                                    const newLectures = lectures.filter(lec => lec.id !== l.id);
+                                                    setLectures(newLectures);
+                                                    if (activeLectureId === l.id) {
+                                                        setActiveLectureId(newLectures[0].id);
+                                                    }
+                                                }
+                                            }}
+                                            className={`p-1.5 rounded-md transition-colors ${activeLectureId === l.id ? 'text-indigo-200 hover:text-white hover:bg-indigo-500' : 'text-slate-500 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-slate-600'}`}
+                                            title="講義を削除"
+                                        >
+                                            <Icons.Trash2 className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                            
+                            <button 
+                                onClick={() => {
+                                    const newId = Date.now().toString();
+                                    setLectures([...lectures, { id: newId, info: { title: '', goal: '', totalTime: 60 }, sections: [{ id: Date.now().toString(), type: '講義', duration: 10, content: '', expectedState: '' }] }]);
+                                    setActiveLectureId(newId);
+                                    setIsModalOpen(true);
+                                }}
+                                className="w-full mt-2 flex items-center gap-2 p-3 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors border border-slate-700 border-dashed"
+                            >
+                                <Icons.Plus className="w-4 h-4" /> 新規講義を作成
+                            </button>
+                        </div>
+                        
+                        <div className="p-4 border-t border-slate-700 bg-slate-900/50">
+                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">データ管理</h3>
+                            <div className="space-y-2">
+                                <button onClick={exportAllData} className="w-full flex items-center gap-2 p-2 text-sm text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                                    <Icons.Database className="w-4 h-4" /> 全データバックアップ
+                                </button>
+                                <button onClick={() => fileInputRefAll.current.click()} className="w-full flex items-center gap-2 p-2 text-sm text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                                    <Icons.Upload className="w-4 h-4" /> 全データ復元
+                                </button>
+                                <input type="file" ref={fileInputRefAll} onChange={importAllData} accept=".json" className="hidden" />
+                            </div>
+                        </div>
+                    </div>
+
+
+                    {/* --- ヘッダー --- */}
                     <header className="bg-indigo-600 text-white shadow-md sticky top-0 z-50">
                         <div className="container mx-auto px-4 py-3 flex flex-wrap gap-3 justify-between items-center max-w-6xl">
                             <div className="flex items-center gap-2 max-w-full">
-                                <Icons.BookOpen className="w-6 h-6 shrink-0" />
-                                <h1 className="text-xl font-bold tracking-wide shrink-0">講義デザイナー</h1>
+                                <button onClick={() => setIsDrawerOpen(true)} className="p-1.5 -ml-2 text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition-colors mr-1">
+                                    <Icons.Menu className="w-6 h-6" />
+                                </button>
+                                <Icons.BookOpen className="w-6 h-6 shrink-0 hidden sm:block" />
+                                <h1 className="text-xl font-bold tracking-wide shrink-0 hidden md:block">講義デザイナー</h1>
                                 {lectureInfo.title && (
                                     <>
-                                        <span className="text-indigo-300 mx-1 shrink-0">|</span>
-                                        <span className="text-lg font-medium truncate max-w-[150px] sm:max-w-xs md:max-w-md" title={lectureInfo.title}>
+                                        <span className="text-indigo-300 mx-1 shrink-0 hidden md:block">|</span>
+                                        <span className="text-lg font-medium truncate max-w-[150px] sm:max-w-xs md:max-w-sm lg:max-w-md" title={lectureInfo.title}>
                                             {lectureInfo.title}
                                         </span>
                                     </>
@@ -243,12 +380,12 @@
                                 <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors">
                                     <Icons.Settings className="w-4 h-4" /> 基本設定
                                 </button>
-                                <button onClick={() => fileInputRef.current.click()} className="flex items-center gap-1 bg-indigo-700 hover:bg-indigo-800 px-3 py-1.5 rounded text-sm transition-colors shadow-inner text-white ml-2">
+                                <button onClick={() => fileInputRefSingle.current.click()} className="flex items-center gap-1 bg-indigo-700 hover:bg-indigo-800 px-3 py-1.5 rounded text-sm transition-colors shadow-inner text-white ml-2" title="JSONファイルからこのリストに講義を追加">
                                     <Icons.Upload className="w-4 h-4" /> 読込
                                 </button>
-                                <input type="file" ref={fileInputRef} onChange={importData} accept=".json" className="hidden" />
-                                <button onClick={exportData} className="flex items-center gap-1 bg-white text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded text-sm font-medium transition-colors shadow">
-                                    <Icons.Download className="w-4 h-4" /> JSON保存
+                                <input type="file" ref={fileInputRefSingle} onChange={importSingleData} accept=".json" className="hidden" />
+                                <button onClick={exportCurrentData} className="flex items-center gap-1 bg-white text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded text-sm font-medium transition-colors shadow" title="表示中の講義をJSONで保存">
+                                    <Icons.Download className="w-4 h-4" /> 保存
                                 </button>
                                 <button onClick={exportImage} disabled={isExportingImage} className="flex items-center gap-1 bg-emerald-500 text-white hover:bg-emerald-600 px-3 py-1.5 rounded text-sm font-medium transition-colors shadow disabled:opacity-50">
                                     <Icons.Camera className="w-4 h-4" /> {isExportingImage ? '画像生成中...' : 'ストーリー画像保存'}

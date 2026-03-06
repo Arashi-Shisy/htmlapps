@@ -30,8 +30,27 @@
 
     <!-- サイドバー -->
     <aside class="w-80 bg-white border-r border-gray-200 shadow-sm flex flex-col z-20 flex-shrink-0">
+        <!-- プロジェクト管理 -->
+        <div class="p-4 border-b border-gray-200 bg-gray-100 flex flex-col gap-2 sticky top-0 z-20">
+            <div class="flex justify-between items-center">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">プロジェクト</label>
+                <div class="flex gap-2">
+                    <button onclick="window.createNewProjectBtn()" class="text-blue-600 hover:text-blue-800 text-xs font-bold transition-colors">+ 新規作成</button>
+                </div>
+            </div>
+            <div class="flex gap-1 items-center">
+                <select id="project-selector" onchange="window.switchProject(this.value)" class="flex-1 bg-white border border-gray-300 text-gray-800 text-sm font-bold rounded focus:ring-blue-500 focus:border-blue-500 p-2 shadow-sm truncate"></select>
+                <button onclick="window.renameCurrentProject()" class="p-2 text-gray-500 hover:text-blue-600 bg-white border border-gray-300 rounded shadow-sm transition-colors" title="名前変更">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                </button>
+                <button onclick="window.deleteCurrentProject()" class="p-2 text-gray-500 hover:text-red-600 bg-white border border-gray-300 rounded shadow-sm transition-colors" title="プロジェクトを削除">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+            </div>
+        </div>
+
         <!-- ゴール設定 -->
-        <div class="p-5 border-b border-gray-100 bg-white sticky top-0">
+        <div class="p-5 border-b border-gray-100 bg-white">
             <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">プロジェクトのゴール</label>
             <textarea id="goal-input" rows="2" class="w-full text-lg font-bold text-gray-800 border border-transparent hover:border-gray-200 focus:border-blue-500 outline-none focus:ring-2 focus:ring-blue-200 rounded-md p-2 transition-all resize-none bg-gray-50 focus:bg-white" placeholder="目標を入力..."></textarea>
         </div>
@@ -82,16 +101,24 @@
             <!-- データ管理 -->
             <div class="mt-6 border-t border-gray-100 pt-4">
                 <h3 class="text-sm font-bold text-gray-700 mb-3">データ保存・読み込み</h3>
-                <div class="flex gap-2">
-                    <button onclick="window.exportJSON()" class="flex-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold py-2 px-1 rounded shadow-sm transition-colors flex flex-col items-center justify-center gap-1" title="JSONファイルとして保存">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                        保存
+                
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <button onclick="window.exportJSON(false)" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-[11px] font-bold py-2 px-1 rounded shadow-sm transition-colors flex flex-col items-center justify-center gap-1" title="現在のプロジェクトだけをJSON保存">
+                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                        現在を保存
                     </button>
-                    <button onclick="document.getElementById('import-file').click()" class="flex-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold py-2 px-1 rounded shadow-sm transition-colors flex flex-col items-center justify-center gap-1" title="JSONファイルを読み込む">
+                    <button onclick="window.exportJSON(true)" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-[11px] font-bold py-2 px-1 rounded shadow-sm transition-colors flex flex-col items-center justify-center gap-1" title="すべてのプロジェクトをまとめてJSON保存">
+                        <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                        全体バックアップ
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="document.getElementById('import-file').click()" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-[11px] font-bold py-2 px-1 rounded shadow-sm transition-colors flex flex-col items-center justify-center gap-1" title="JSONファイル(単一/全体)を読み込む">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        読込
+                        読込 (JSON)
                     </button>
-                    <button id="btn-export-image" onclick="window.exportImage()" class="flex-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold py-2 px-1 rounded shadow-sm transition-colors flex flex-col items-center justify-center gap-1" title="画像ファイルとして保存">
+                    <button id="btn-export-image" onclick="window.exportImage()" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-[11px] font-bold py-2 px-1 rounded shadow-sm transition-colors flex flex-col items-center justify-center gap-1" title="画像ファイルとして保存">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                         画像出力
                     </button>
@@ -244,17 +271,143 @@
         /**
          * アプリケーションの状態管理 (Store)
          */
-        let state = {
-            goal: "新規プロジェクトのゴールを設定してください",
-            labels: [
-                { id: 'l1', name: '開発', color: '#3b82f6' }, // blue
-                { id: 'l2', name: 'デザイン', color: '#ec4899' }, // pink
-                { id: 'l3', name: 'マーケティング', color: '#10b981' } // emerald
-            ],
-            tasks: [] // デフォルトはタスクなし
+        const STORAGE_KEY = 'roadmap_app_data_v2';
+        const OLD_STORAGE_KEY = 'roadmap_app_data';
+
+        const DEFAULT_LABELS = [
+            { id: 'l1', name: '開発', color: '#3b82f6' },
+            { id: 'l2', name: 'デザイン', color: '#ec4899' },
+            { id: 'l3', name: 'マーケティング', color: '#10b981' }
+        ];
+
+        let appData = {
+            currentProjectId: null,
+            projects: []
         };
 
-        const STORAGE_KEY = 'roadmap_app_data';
+        let state = null; // 現在のプロジェクトを参照する変数
+
+        function createNewProject(name = "新規プロジェクト", isInitial = false) {
+            const newId = 'p_' + Date.now() + Math.floor(Math.random() * 1000);
+            const newProject = {
+                id: newId,
+                name: name,
+                goal: "新規プロジェクトのゴールを設定してください",
+                labels: JSON.parse(JSON.stringify(DEFAULT_LABELS)), // ディープコピー
+                tasks: []
+            };
+            appData.projects.push(newProject);
+            
+            if (!isInitial) {
+                switchProject(newId);
+            }
+            return newId;
+        }
+
+        window.createNewProjectBtn = () => {
+            const name = prompt("新しいプロジェクト名を入力してください", "新規プロジェクト");
+            if (name) {
+                createNewProject(name);
+            }
+        };
+
+        window.renameCurrentProject = () => {
+            const newName = prompt("プロジェクト名を変更します", state.name);
+            if (newName && newName.trim() !== "") {
+                state.name = newName.trim();
+                updateProjectSelector();
+                saveToLocalStorage();
+            }
+        };
+
+        window.switchProject = (id) => {
+            appData.currentProjectId = id;
+            state = appData.projects.find(p => p.id === id);
+            updateProjectSelector();
+            updateView();
+            window.resetView(); // プロジェクト切り替え時はビューをリセット
+        };
+
+        window.deleteCurrentProject = () => {
+            if (appData.projects.length <= 1) {
+                alert("最後のプロジェクトは削除できません。");
+                return;
+            }
+            if (!confirm(`プロジェクト「${state.name}」を削除しますか？\nこの操作は元に戻せません。`)) return;
+            
+            appData.projects = appData.projects.filter(p => p.id !== appData.currentProjectId);
+            appData.currentProjectId = appData.projects[0].id;
+            state = appData.projects[0];
+            
+            updateProjectSelector();
+            updateView();
+            window.resetView();
+        };
+
+        function updateProjectSelector() {
+            const selector = document.getElementById('project-selector');
+            selector.innerHTML = appData.projects.map(p => 
+                `<option value="${p.id}" ${p.id === appData.currentProjectId ? 'selected' : ''}>${p.name}</option>`
+            ).join('');
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && parsed.projects && parsed.projects.length > 0) {
+                        appData = parsed;
+                        // 存在しないプロジェクトが選ばれていたら修正
+                        if (!appData.projects.find(p => p.id === appData.currentProjectId)) {
+                            appData.currentProjectId = appData.projects[0].id;
+                        }
+                    } else {
+                        throw new Error("Invalid data");
+                    }
+                } catch (e) {
+                    console.error("ローカルデータの読み込みに失敗しました", e);
+                    initDefaultData();
+                }
+            } else {
+                // 古いデータ(v1)からのマイグレーション
+                const oldSaved = localStorage.getItem(OLD_STORAGE_KEY);
+                if(oldSaved) {
+                    try {
+                        const oldState = JSON.parse(oldSaved);
+                        initDefaultData(false);
+                        const pId = createNewProject("移行されたプロジェクト", true);
+                        appData.currentProjectId = pId;
+                        state = appData.projects.find(p => p.id === pId);
+                        state.goal = oldState.goal || "";
+                        state.labels = oldState.labels || DEFAULT_LABELS;
+                        state.tasks = oldState.tasks || [];
+                    } catch(e) {
+                        initDefaultData();
+                    }
+                } else {
+                    initDefaultData();
+                }
+            }
+            
+            state = appData.projects.find(p => p.id === appData.currentProjectId);
+            updateProjectSelector();
+        }
+
+        function initDefaultData(createDefault = true) {
+            appData = { projects: [], currentProjectId: null };
+            if (createDefault) {
+                const pId = createNewProject("メインプロジェクト", true);
+                appData.currentProjectId = pId;
+                state = appData.projects[0];
+            }
+        }
+
+        function saveToLocalStorage() {
+            if (appData.projects.length > 0) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+            }
+        }
 
         // ズーム設定
         let currentZoom = 1;
@@ -263,24 +416,6 @@
         const ZOOM_STEP = 0.1;
         const BASE_CANVAS_WIDTH = 4000;
         const BASE_CANVAS_HEIGHT = 3000;
-
-        function loadFromLocalStorage() {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                try {
-                    const parsed = JSON.parse(saved);
-                    if (parsed && typeof parsed === 'object') {
-                        state = { ...state, ...parsed };
-                    }
-                } catch (e) {
-                    console.error("ローカルデータの読み込みに失敗しました", e);
-                }
-            }
-        }
-
-        function saveToLocalStorage() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        }
 
         const COLOR_PALETTE = [
             '#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981', 
@@ -919,9 +1054,11 @@
         };
 
         // エクスポート用のファイル名を生成する共通関数
-        function generateExportFileName(extension) {
-            // ファイル名に使用できない文字や改行をアンダースコアに置換
-            const safeGoalName = state.goal.replace(/[\\/:*?"<>|\n\r]/g, '_').trim() || 'Project';
+        function generateExportFileName(extension, isAll = false) {
+            let baseName = "AllProjects";
+            if (!isAll && state) {
+                baseName = (state.name || state.goal).replace(/[\\/:*?"<>|\n\r]/g, '_').trim() || 'Project';
+            }
             const date = new Date();
             const yyyy = date.getFullYear();
             const MM = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -931,18 +1068,28 @@
             
             // 年月日時分 (yyyyMMddhhmm)
             const dateStr = `${yyyy}${MM}${dd}${hh}${mm}`;
-            return `${safeGoalName}_Roadmap_${dateStr}.${extension}`;
+            return `${baseName}_Roadmap_${dateStr}.${extension}`;
         }
 
         // データ入出力
-        window.exportJSON = () => {
-            const dataStr = JSON.stringify(state, null, 2);
+        window.exportJSON = (isAll = false) => {
+            let exportData;
+            if (isAll) {
+                exportData = appData;
+            } else {
+                exportData = {
+                    version: 'single_project_v2',
+                    project: state 
+                };
+            }
+
+            const dataStr = JSON.stringify(exportData, null, 2);
             const blob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             
             a.href = url;
-            a.download = generateExportFileName('json');
+            a.download = generateExportFileName('json', isAll);
             a.click();
             URL.revokeObjectURL(url);
         };
@@ -954,12 +1101,40 @@
             reader.onload = (e) => {
                 try {
                     const parsed = JSON.parse(e.target.result);
-                    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.tasks)) {
-                        state = { ...state, ...parsed };
-                        updateView();
-                        alert('データをインポートしました。');
-                    } else { throw new Error('Invalid format'); }
-                } catch (err) { alert('ファイルの読み込みに失敗しました。正しいロードマップデータ(JSON)を選択してください。'); }
+                    if (parsed.projects && Array.isArray(parsed.projects)) {
+                        // 全バックアップの復元
+                        if (confirm("全データバックアップを読み込みます。\n現在のすべてのプロジェクトが上書きされますがよろしいですか？")) {
+                            appData = parsed;
+                            state = appData.projects.find(p => p.id === appData.currentProjectId) || appData.projects[0];
+                            appData.currentProjectId = state.id;
+                            updateProjectSelector();
+                            updateView();
+                            window.resetView();
+                            alert('全データを復元しました。');
+                        }
+                    } else if (parsed.version === 'single_project_v2' && parsed.project) {
+                        // 単一プロジェクトの追加
+                        const p = parsed.project;
+                        p.id = 'p_' + Date.now() + Math.floor(Math.random() * 1000); // ID重複回避
+                        appData.projects.push(p);
+                        window.switchProject(p.id);
+                        alert(`プロジェクト「${p.name}」を追加しました。`);
+                    } else if (parsed.tasks && Array.isArray(parsed.tasks)) {
+                        // 古いバージョン(v1)の単一プロジェクトの追加
+                        const pId = createNewProject("インポートされたプロジェクト", true);
+                        const p = appData.projects.find(proj => proj.id === pId);
+                        p.goal = parsed.goal || "";
+                        p.labels = parsed.labels || DEFAULT_LABELS;
+                        p.tasks = parsed.tasks;
+                        window.switchProject(pId);
+                        alert('旧バージョンのプロジェクトを追加しました。');
+                    } else {
+                        throw new Error('Invalid format');
+                    }
+                } catch (err) { 
+                    alert('ファイルの読み込みに失敗しました。正しいロードマップデータ(JSON)を選択してください。'); 
+                    console.error(err);
+                }
                 event.target.value = '';
             };
             reader.readAsText(file);
@@ -1028,7 +1203,7 @@
                 htmlToImage.toPng(svg, { backgroundColor: '#f1f5f9' })
                     .then(dataUrl => {
                         const link = document.createElement('a');
-                        link.download = generateExportFileName('png');
+                        link.download = generateExportFileName('png', false);
                         link.href = dataUrl;
                         link.click();
                     })
